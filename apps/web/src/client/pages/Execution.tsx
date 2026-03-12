@@ -6,8 +6,10 @@ import { useTaskStore } from '../stores/taskStore';
 import { getAccomplish } from '../lib/accomplish';
 import { MAX_FILES } from '../lib/fileUtils';
 import { springs } from '../lib/animations';
+import { FAVORITABLE_STATUSES } from '../lib/task-utils';
 import { hasAnyReadyProvider } from '@accomplish_ai/agent-core/common';
 import { Button } from '@/components/ui/button';
+import { StarButton } from '@/components/ui/StarButton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card } from '@/components/ui/card';
 import {
@@ -42,6 +44,59 @@ function debounce<T extends (...args: unknown[]) => void>(fn: T, ms: number): T 
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => fn(...args), ms);
   }) as T;
+}
+
+function ExecutionCompleteFooter({
+  taskId,
+  onStartNewTask,
+}: {
+  taskId: string;
+  onStartNewTask: () => void;
+}) {
+  const { t: tExecution } = useTranslation('execution');
+  const { currentTask, favorites, loadFavorites, addFavorite, removeFavorite } = useTaskStore();
+  const favoritesList = Array.isArray(favorites) ? favorites : [];
+  const isFavorited = favoritesList.some((f) => f.taskId === taskId);
+
+  useEffect(() => {
+    if (typeof loadFavorites === 'function') {
+      loadFavorites();
+    }
+  }, [loadFavorites]);
+
+  const handleToggleFavorite = useCallback(async () => {
+    if (isFavorited) {
+      await removeFavorite(taskId);
+    } else {
+      await addFavorite(taskId);
+    }
+  }, [taskId, isFavorited, addFavorite, removeFavorite]);
+
+  const rawStatus = currentTask?.status ?? '';
+  const statusLabelKey = rawStatus === 'interrupted' ? 'status.stopped' : `status.${rawStatus}`;
+  const statusLabel = rawStatus ? tExecution(statusLabelKey) : '';
+  const canFavorite = FAVORITABLE_STATUSES.includes(rawStatus);
+
+  return (
+    <div className="flex-shrink-0 border-t border-border bg-card/50 px-6 py-4 flex flex-col items-center gap-3">
+      <p className="text-sm text-muted-foreground">
+        {tExecution('taskStatus', { status: statusLabel })}
+      </p>
+      <div className="flex items-center gap-2">
+        {canFavorite && (
+          <StarButton
+            isFavorite={isFavorited}
+            onToggle={() => void handleToggleFavorite()}
+            size="md"
+            data-testid="favorite-toggle"
+          />
+        )}
+        <Button onClick={onStartNewTask} data-testid="start-new-task">
+          {tExecution('startNewTask')}
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 export function ExecutionPage() {
@@ -951,21 +1006,10 @@ export function ExecutionPage() {
           </div>
         )}
 
-        {/* Completed/Failed state (no session to continue) */}
-        {isComplete && !canFollowUp && (
-          <div className="flex-shrink-0 border-t border-border bg-card/50 px-6 py-4 text-center">
-            <p className="text-sm text-muted-foreground mb-3">
-              {t('taskStatus', {
-                status:
-                  currentTask.status === 'interrupted'
-                    ? t('status.stopped').toLowerCase()
-                    : currentTask.status,
-              })}
-            </p>
-            <div className="mt-3">
-              <Button onClick={() => navigate('/')}>{tCommon('buttons.startNewTask')}</Button>
-            </div>
-          </div>
+        {['completed', 'interrupted', 'failed', 'cancelled'].includes(
+          currentTask?.status ?? '',
+        ) && (
+          <ExecutionCompleteFooter taskId={currentTask.id} onStartNewTask={() => navigate('/')} />
         )}
 
         {/* Debug Panel */}

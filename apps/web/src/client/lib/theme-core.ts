@@ -36,8 +36,8 @@ export function initEarlyTheme(): void {
   } catch (_e) {
     // localStorage may be unavailable in sandboxed environments; fall back to system
   }
-  const preference = (['system', 'light', 'dark'].includes(stored)
-    ? stored
-    : 'system') as ThemePreference;
+  const preference = (
+    ['system', 'light', 'dark'].includes(stored) ? stored : 'system'
+  ) as ThemePreference;
   applyClass(resolveTheme(preference));
 }

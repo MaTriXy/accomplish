@@ -26,6 +26,7 @@ import type {
   McpConnector,
   FileAttachmentInfo,
 } from '@accomplish_ai/agent-core/common';
+import type { StoredFavorite } from '@accomplish_ai/agent-core';
 
 // Define the API interface
 interface AccomplishAPI {
@@ -44,6 +45,10 @@ interface AccomplishAPI {
   listTasks(): Promise<Task[]>;
   deleteTask(taskId: string): Promise<void>;
   clearTaskHistory(): Promise<void>;
+  addFavorite(taskId: string): Promise<void>;
+  removeFavorite(taskId: string): Promise<void>;
+  listFavorites(): Promise<StoredFavorite[]>;
+  isFavorite(taskId: string): Promise<boolean>;
   pickFiles(): Promise<FileAttachmentInfo[]>;
   getFilePath(file: File): string;
   processDroppedFiles(paths: string[]): Promise<FileAttachmentInfo[]>;

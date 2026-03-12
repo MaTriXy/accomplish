@@ -30,6 +30,11 @@ const accomplishAPI = {
   clearTaskHistory: (): Promise<void> => ipcRenderer.invoke('task:clear-history'),
   getTodosForTask: (taskId: string): Promise<TodoItem[]> =>
     ipcRenderer.invoke('task:get-todos', taskId),
+  addFavorite: (taskId: string): Promise<void> => ipcRenderer.invoke('task:favorite:add', taskId),
+  removeFavorite: (taskId: string): Promise<void> =>
+    ipcRenderer.invoke('task:favorite:remove', taskId),
+  listFavorites: (): Promise<unknown[]> => ipcRenderer.invoke('task:favorite:list'),
+  isFavorite: (taskId: string): Promise<boolean> => ipcRenderer.invoke('task:favorite:has', taskId),
   pickFiles: (): Promise<import('@accomplish_ai/agent-core/common').FileAttachmentInfo[]> =>
     ipcRenderer.invoke('task:pick-files'),
   processDroppedFiles: (
