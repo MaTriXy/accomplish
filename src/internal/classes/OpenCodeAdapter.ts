@@ -25,6 +25,14 @@ import { CONNECTOR_AUTH_REQUIRED_MARKER } from '../../common/constants.js';
 
 const LOG_TRUNCATION_LIMIT = 500;
 
+/** Windows STATUS_CONTROL_C_EXIT — exit code produced when a process is
+ *  terminated via Ctrl+C (0xC000013A). On Windows this is not an error;
+ *  treat it the same as a clean exit (code === 0). */
+export const WINDOWS_CTRL_C_EXIT_CODE = -1073741510;
+
+export const isNormalExit = (code: number | null, platform?: string): boolean =>
+  code === 0 || (platform === 'win32' && code === WINDOWS_CTRL_C_EXIT_CODE);
+
 interface ConnectorAuthPauseInput {
   providerId?: string;
   message?: string;
@@ -758,7 +766,7 @@ export class OpenCodeAdapter extends EventEmitter<OpenCodeAdapterEvents> {
   private handleProcessExit(code: number | null): void {
     this.ptyProcess = null;
 
-    if (this.wasInterrupted && code === 0 && !this.hasCompleted) {
+    if (this.wasInterrupted && isNormalExit(code, this.options.platform) && !this.hasCompleted) {
       console.log('[OpenCode CLI] Task was interrupted by user');
       this.hasCompleted = true;
       this.emit('complete', {
@@ -769,8 +777,10 @@ export class OpenCodeAdapter extends EventEmitter<OpenCodeAdapterEvents> {
       return;
     }
 
-    if (code === 0 && !this.hasCompleted) {
-      this.completionEnforcer.handleProcessExit(code).catch((error) => {
+    if (isNormalExit(code, this.options.platform) && !this.hasCompleted) {
+      // Normalize Windows Ctrl+C exit code to 0 so the completion enforcer treats it as a clean exit
+      const normalizedCode = code === WINDOWS_CTRL_C_EXIT_CODE ? 0 : (code ?? 0);
+      this.completionEnforcer.handleProcessExit(normalizedCode).catch((error) => {
         console.error('[OpenCode Adapter] Completion enforcer error:', error);
         this.hasCompleted = true;
         this.emit('complete', {
@@ -782,8 +792,8 @@ export class OpenCodeAdapter extends EventEmitter<OpenCodeAdapterEvents> {
       return;
     }
 
-    if (!this.hasCompleted && code !== 0) {
-      // Treat null (abnormal PTY termination) and non-zero codes both as errors
+    if (!this.hasCompleted && !isNormalExit(code, this.options.platform)) {
+      // Treat null (abnormal PTY termination) and non-zero non-normal codes as errors
       const errorMessage = classifyProcessError(code ?? undefined, this.outputBuffer);
       this.emit('error', new Error(errorMessage));
     }
