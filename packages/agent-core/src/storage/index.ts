@@ -115,3 +115,17 @@ export {
   deleteConnector,
   clearAllConnectors,
 } from './repositories/index.js';
+
+export {
+  listRecordings,
+  getRecording,
+  getActiveRecordingForTask,
+  saveRecording,
+  deleteRecording,
+  listReplayRunsForRecording,
+  getReplayRun,
+  saveReplayRun,
+  markIncompleteReplayRunsAsFailed,
+  getRecordingPrivacyConfig,
+  setRecordingPrivacyConfig,
+} from './repositories/index.js';

@@ -14,7 +14,6 @@ interface TaskLauncherContentProps {
   selectedIndex: number;
   filteredTasks: Task[];
   onSelect: (index: number) => void;
-  onClose: () => void;
   onKeyDown: (e: React.KeyboardEvent) => void;
 }
 
@@ -24,7 +23,6 @@ export function TaskLauncherContent({
   selectedIndex,
   filteredTasks,
   onSelect,
-  onClose,
   onKeyDown,
 }: TaskLauncherContentProps) {
   const { t } = useTranslation('sidebar');
@@ -55,7 +53,6 @@ export function TaskLauncherContent({
           />
           <DialogPrimitive.Close asChild>
             <button
-              onClick={onClose}
               className="text-muted-foreground hover:text-foreground transition-colors"
               aria-label={t('close')}
             >

@@ -736,7 +736,7 @@ describe('TaskHistory Integration', () => {
       );
 
       // Assert
-      const taskCard = screen.getByText('Styled task').closest('[class*="rounded-card"]');
+      const taskCard = screen.getByText('Styled task').closest('div.relative');
       expect(taskCard?.className).toContain('rounded-card');
     });
 
@@ -752,7 +752,7 @@ describe('TaskHistory Integration', () => {
       );
 
       // Assert
-      const taskCard = screen.getByText('Hover task').closest('[class*="hover:shadow-card-hover"]');
+      const taskCard = screen.getByText('Hover task').closest('div.relative');
       expect(taskCard?.className).toContain('hover:shadow-card-hover');
     });
 

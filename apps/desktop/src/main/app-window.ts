@@ -89,8 +89,6 @@ export function createMainWindow(opts: {
     return { action: 'deny' };
   });
 
-  mainWindow.maximize();
-
   const isE2EMode = (global as Record<string, unknown>).E2E_SKIP_AUTH === true;
   if (!app.isPackaged && !isE2EMode && process.env.NODE_ENV !== 'test') {
     mainWindow.webContents.openDevTools({ mode: 'right' });

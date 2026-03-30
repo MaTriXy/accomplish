@@ -37,6 +37,18 @@ export function FollowUpToolbar({
   onOpenSpeechSettings,
 }: FollowUpToolbarProps) {
   const { t: tCommon } = useTranslation('common');
+  const isSendDisabled =
+    (!followUp.trim() && attachments.length === 0) ||
+    isLoading ||
+    speechInput.isRecording ||
+    isFollowUpOverLimit;
+
+  let sendButtonTitle = tCommon('buttons.send');
+  if (!followUp.trim() && attachments.length === 0) {
+    sendButtonTitle = tCommon('tooltips.enterMessage');
+  } else if (isFollowUpOverLimit) {
+    sendButtonTitle = tCommon('tooltips.messageTooLong');
+  }
 
   return (
     <div className="flex items-center justify-between gap-2 px-3 py-2 border-t border-border/50">
@@ -68,14 +80,10 @@ export function FollowUpToolbar({
         <button
           type="button"
           onClick={handleFollowUp}
-          disabled={
-            (!followUp.trim() && attachments.length === 0) ||
-            isLoading ||
-            speechInput.isRecording ||
-            isFollowUpOverLimit
-          }
+          disabled={isSendDisabled}
           className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          title={tCommon('buttons.send')}
+          title={sendButtonTitle}
+          data-testid="execution-follow-up-send-button"
         >
           <ArrowBendDownLeft className="h-4 w-4" />
         </button>

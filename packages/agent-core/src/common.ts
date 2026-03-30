@@ -193,6 +193,29 @@ export { DESKTOP_ACTION_TYPES } from './common/types/desktop.js';
 export type { TodoItem } from './common/types/todo.js';
 export type { LogLevel, LogSource, LogEntry } from './common/types/logging.js';
 export type { ThoughtEvent, CheckpointEvent } from './common/types/thought-stream.js';
+export type {
+  Recording,
+  RecordingAction,
+  ReplayErrorStrategy,
+  ReplayOptions,
+  ReplayRun,
+  ReplayStatus,
+  ReplayStepState,
+  RecordingMetadata,
+  RecordingOrigin,
+  RecordingParameter,
+  RecordingUpdateInput,
+  RecordingSource,
+  RecordingStatus,
+  RecordingStep,
+  SelectorStrategy,
+  PrivacyAnnotation,
+  PrivacyConfig,
+  PrivacyManifest,
+  WaitCondition,
+  ElementSnapshot,
+} from './common/types/recording.js';
+export { DEFAULT_PRIVACY_CONFIG, RECORDING_SCHEMA_VERSION } from './common/types/recording.js';
 
 // === CONSTANTS ===
 export {

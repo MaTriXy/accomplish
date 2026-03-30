@@ -8,7 +8,12 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { MessagingConnectionStatus } from '@accomplish_ai/agent-core/common';
 import type {
+  PrivacyConfig,
   ProviderType,
+  Recording,
+  RecordingUpdateInput,
+  ReplayOptions,
+  ReplayRun,
   Skill,
   TodoItem,
   McpConnector,
@@ -43,6 +48,48 @@ const accomplishAPI = {
   clearTaskHistory: (): Promise<void> => ipcRenderer.invoke('task:clear-history'),
   getTodosForTask: (taskId: string): Promise<TodoItem[]> =>
     ipcRenderer.invoke('task:get-todos', taskId),
+
+  // Recordings
+  listRecordings: (): Promise<Recording[]> => ipcRenderer.invoke('recording:list'),
+  getRecording: (recordingId: string): Promise<Recording | null> =>
+    ipcRenderer.invoke('recording:get', recordingId),
+  listReplayRuns: (recordingId: string): Promise<ReplayRun[]> =>
+    ipcRenderer.invoke('recording:list-replays', recordingId),
+  updateRecording: (recordingId: string, input: RecordingUpdateInput): Promise<Recording> =>
+    ipcRenderer.invoke('recording:update', recordingId, input),
+  getRecordingPrivacyConfig: (): Promise<PrivacyConfig> =>
+    ipcRenderer.invoke('recording:get-privacy-config'),
+  setRecordingPrivacyConfig: (config: PrivacyConfig): Promise<PrivacyConfig> =>
+    ipcRenderer.invoke('recording:set-privacy-config', config),
+  getActiveRecordingForTask: (taskId: string): Promise<Recording | null> =>
+    ipcRenderer.invoke('recording:get-active-for-task', taskId),
+  getReplay: (runId: string): Promise<ReplayRun | null> =>
+    ipcRenderer.invoke('recording:get-replay', runId),
+  getActiveReplayForRecording: (recordingId: string): Promise<ReplayRun | null> =>
+    ipcRenderer.invoke('recording:get-active-replay', recordingId),
+  startAgentRecording: (taskId: string, name?: string): Promise<Recording> =>
+    ipcRenderer.invoke('recording:start-agent', taskId, name),
+  startManualRecording: (name?: string, startUrl?: string): Promise<Recording> =>
+    ipcRenderer.invoke('recording:start-manual', name, startUrl),
+  stopRecording: (recordingId: string): Promise<Recording> =>
+    ipcRenderer.invoke('recording:stop', recordingId),
+  stopManualRecording: (recordingId: string): Promise<Recording> =>
+    ipcRenderer.invoke('recording:stop-manual', recordingId),
+  replayRecording: (recordingId: string, options?: Partial<ReplayOptions>): Promise<ReplayRun> =>
+    ipcRenderer.invoke('recording:replay:start', recordingId, options),
+  pauseReplay: (runId: string): Promise<ReplayRun | null> =>
+    ipcRenderer.invoke('recording:replay:pause', runId),
+  resumeReplay: (runId: string): Promise<ReplayRun | null> =>
+    ipcRenderer.invoke('recording:replay:resume', runId),
+  stepReplay: (runId: string): Promise<ReplayRun | null> =>
+    ipcRenderer.invoke('recording:replay:step', runId),
+  cancelReplay: (runId: string): Promise<ReplayRun | null> =>
+    ipcRenderer.invoke('recording:replay:cancel', runId),
+  deleteRecording: (recordingId: string): Promise<void> =>
+    ipcRenderer.invoke('recording:delete', recordingId),
+  exportRecording: (recordingId: string): Promise<string | null> =>
+    ipcRenderer.invoke('recording:export', recordingId),
+  importRecording: (): Promise<Recording | null> => ipcRenderer.invoke('recording:import'),
 
   // Permission responses
   respondToPermission: (response: { taskId: string; allowed: boolean }): Promise<void> =>
@@ -529,6 +576,12 @@ const accomplishAPI = {
       );
     ipcRenderer.on('browser:status', listener);
     return () => ipcRenderer.removeListener('browser:status', listener);
+  },
+
+  onReplayUpdate: (callback: (run: ReplayRun) => void) => {
+    const listener = (_: unknown, run: ReplayRun) => callback(run);
+    ipcRenderer.on('recording:replay-update', listener);
+    return () => ipcRenderer.removeListener('recording:replay-update', listener);
   },
 
   /** Start a browser preview stream for a given task and page. */

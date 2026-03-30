@@ -20,6 +20,11 @@ import type {
   ProviderSettings,
   ProviderId,
   ConnectedProvider,
+  PrivacyConfig,
+  Recording,
+  RecordingUpdateInput,
+  ReplayOptions,
+  ReplayRun,
   TodoItem,
   ToolSupportStatus,
   Skill,
@@ -59,6 +64,29 @@ interface AccomplishAPI {
   listTasks(): Promise<Task[]>;
   deleteTask(taskId: string): Promise<void>;
   clearTaskHistory(): Promise<void>;
+
+  // Recordings
+  listRecordings(): Promise<Recording[]>;
+  getRecording(recordingId: string): Promise<Recording | null>;
+  listReplayRuns(recordingId: string): Promise<ReplayRun[]>;
+  updateRecording(recordingId: string, input: RecordingUpdateInput): Promise<Recording>;
+  getRecordingPrivacyConfig(): Promise<PrivacyConfig>;
+  setRecordingPrivacyConfig(config: PrivacyConfig): Promise<PrivacyConfig>;
+  getActiveRecordingForTask(taskId: string): Promise<Recording | null>;
+  getReplay(runId: string): Promise<ReplayRun | null>;
+  getActiveReplayForRecording(recordingId: string): Promise<ReplayRun | null>;
+  startAgentRecording(taskId: string, name?: string): Promise<Recording>;
+  startManualRecording(name?: string, startUrl?: string): Promise<Recording>;
+  stopRecording(recordingId: string): Promise<Recording>;
+  stopManualRecording(recordingId: string): Promise<Recording>;
+  replayRecording(recordingId: string, options?: Partial<ReplayOptions>): Promise<ReplayRun>;
+  pauseReplay(runId: string): Promise<ReplayRun | null>;
+  resumeReplay(runId: string): Promise<ReplayRun | null>;
+  stepReplay(runId: string): Promise<ReplayRun | null>;
+  cancelReplay(runId: string): Promise<ReplayRun | null>;
+  deleteRecording(recordingId: string): Promise<void>;
+  exportRecording(recordingId: string): Promise<string | null>;
+  importRecording(): Promise<Recording | null>;
 
   // Permission responses
   respondToPermission(response: PermissionResponse): Promise<void>;
@@ -466,6 +494,7 @@ interface AccomplishAPI {
       event: BrowserStatusPayload & { taskId: string; pageName: string; message?: string },
     ) => void,
   ): () => void;
+  onReplayUpdate(callback: (run: ReplayRun) => void): () => void;
   startBrowserPreview?(taskId: string, pageName?: string): Promise<{ success: boolean }>;
   stopBrowserPreview?(taskId: string): Promise<{ stopped: boolean }>;
   getBrowserPreviewStatus?(): Promise<{ active: boolean }>;

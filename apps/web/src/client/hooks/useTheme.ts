@@ -43,19 +43,21 @@ export function useTheme() {
   // Sync from Electron backend on mount and subscribe to host-driven changes
   useEffect(() => {
     const accomplish = getAccomplish();
-    accomplish
-      .getTheme()
-      .then((theme) => {
-        // Skip if the user already made a choice before this async call resolved
-        if (hasLocalOverrideRef.current) return;
-        if (theme === 'light' || theme === 'dark' || theme === 'system') {
-          setPreference(theme);
-          setIsDark(resolveIsDark(theme));
-        }
-      })
-      .catch(() => {
-        // fall back to locally stored preference
-      });
+    if (typeof accomplish.getTheme === 'function') {
+      accomplish
+        .getTheme()
+        .then((theme) => {
+          // Skip if the user already made a choice before this async call resolved
+          if (hasLocalOverrideRef.current) return;
+          if (theme === 'light' || theme === 'dark' || theme === 'system') {
+            setPreference(theme);
+            setIsDark(resolveIsDark(theme));
+          }
+        })
+        .catch(() => {
+          // fall back to locally stored preference
+        });
+    }
 
     if (accomplish.onThemeChange) {
       const cleanup = accomplish.onThemeChange(({ theme, resolved }) => {
@@ -93,11 +95,12 @@ export function useTheme() {
     setPreference(newPreference);
     setIsDark(resolveIsDark(newPreference));
     applyLibTheme(newPreference);
-    getAccomplish()
-      .setTheme(newPreference)
-      .catch(() => {
+    const accomplish = getAccomplish();
+    if (typeof accomplish.setTheme === 'function') {
+      accomplish.setTheme(newPreference).catch(() => {
         // ignore
       });
+    }
   };
 
   const toggleTheme = () => {

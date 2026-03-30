@@ -10,6 +10,7 @@ import { registerFavoritesHandlers } from './favorites-handlers';
 import { registerConnectorHandlers } from './connector-handlers';
 import { registerWorkspaceHandlers } from './workspace-handlers';
 import { registerHuggingFaceHandlers } from './huggingface-handlers';
+import { registerRecordingHandlers } from './recording-handlers';
 
 export function registerIPCHandlers(): void {
   registerTaskHandlers();
@@ -24,4 +25,5 @@ export function registerIPCHandlers(): void {
   registerConnectorHandlers();
   registerWorkspaceHandlers();
   registerHuggingFaceHandlers();
+  registerRecordingHandlers();
 }

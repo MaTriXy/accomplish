@@ -156,6 +156,17 @@ export function useExecutionActions(s: CoreState) {
     }
   }, [accomplish, s, navigate]);
 
+  const handleRecordingToggle = useCallback(async () => {
+    if (!s.currentTask) {
+      return;
+    }
+    if (s.activeRecording) {
+      await s.stopRecording(s.activeRecording.id);
+      return;
+    }
+    await s.startAgentRecording(s.currentTask.id, s.currentTask.prompt);
+  }, [s]);
+
   const handleOpenSpeechSettings = useCallback(() => {
     s.setSettingsInitialTab('voice');
     s.setShowSettingsDialog(true);
@@ -175,6 +186,7 @@ export function useExecutionActions(s: CoreState) {
     handlePermissionResponse,
     handleBugReport,
     handleRepeatTask,
+    handleRecordingToggle,
     handleOpenSpeechSettings,
     handleOpenModelSettings,
   };

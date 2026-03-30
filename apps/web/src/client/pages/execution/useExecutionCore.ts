@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { PROMPT_DEFAULT_MAX_LENGTH } from '@accomplish_ai/agent-core/common';
 import { useTaskStore } from '../../stores/taskStore';
+import { useRecordingStore } from '../../stores/recordingStore';
 import { getAccomplish } from '../../lib/accomplish';
 import { useSpeechInput } from '../../hooks/useSpeechInput';
 import { useSlashCommand } from '../../hooks/useSlashCommand';
@@ -56,6 +57,7 @@ export function useExecutionCore() {
     todos,
     todosTaskId,
   } = useTaskStore();
+  const { recordings, startAgentRecording, stopRecording } = useRecordingStore();
 
   const scroll = useExecutionScroll();
 
@@ -111,6 +113,11 @@ export function useExecutionCore() {
   }, [currentTask?.id, currentTask?.messages?.length, scroll.scrollToBottom, scroll.isAtBottom]);
 
   const permissionRequest = (id ? permissionRequests[id] : undefined) ?? null;
+  const activeRecording =
+    recordings.find(
+      (recording) =>
+        recording.status === 'recording' && recording.metadata.sourceTaskId === currentTask?.id,
+    ) ?? null;
   const isComplete = ['completed', 'failed', 'cancelled', 'interrupted'].includes(
     currentTask?.status ?? '',
   );
@@ -166,6 +173,10 @@ export function useExecutionCore() {
     updateTaskStatus,
     setPermissionRequest,
     permissionRequests,
+    recordings,
+    activeRecording,
+    startAgentRecording,
+    stopRecording,
     respondToPermission,
     sendFollowUp,
     interruptTask,

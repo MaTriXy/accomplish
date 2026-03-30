@@ -228,6 +228,8 @@ export function SettingsDialog({
                   onNotificationsToggle={s.handleNotificationsToggle}
                   debugMode={s.debugMode}
                   onDebugToggle={s.handleDebugToggle}
+                  recordingPrivacyConfig={s.recordingPrivacyConfig}
+                  onRecordingPrivacyConfigChange={s.handleRecordingPrivacyConfigChange}
                 />
               )}
               {s.activeTab === 'about' && <AboutTab appVersion={s.appVersion} />}

@@ -40,6 +40,7 @@ const mockAccomplish = {
   hasAnyApiKey: mockHasAnyApiKey,
   getSelectedModel: vi.fn().mockResolvedValue({ provider: 'anthropic', id: 'claude-3-opus' }),
   getOllamaConfig: vi.fn().mockResolvedValue(null),
+  getEnabledSkills: vi.fn().mockResolvedValue([]),
   onTaskUpdate: mockOnTaskUpdate.mockReturnValue(() => {}),
   onPermissionRequest: mockOnPermissionRequest.mockReturnValue(() => {}),
   logEvent: mockLogEvent.mockResolvedValue(undefined),
@@ -86,7 +87,8 @@ let mockStoreState = {
 
 // Mock the task store
 vi.mock('@/stores/taskStore', () => ({
-  useTaskStore: () => mockStoreState,
+  useTaskStore: (selector?: (state: typeof mockStoreState) => unknown) =>
+    selector ? selector(mockStoreState) : mockStoreState,
 }));
 
 // Mock framer-motion for simpler testing
@@ -435,6 +437,19 @@ describe('Home Page Integration', () => {
         expect(screen.getByTestId('settings-dialog')).toBeInTheDocument();
       });
 
+      mockAccomplish.getProviderSettings.mockResolvedValue({
+        activeProviderId: 'anthropic',
+        connectedProviders: {
+          anthropic: {
+            providerId: 'anthropic',
+            connectionStatus: 'connected',
+            selectedModelId: 'claude-3-5-sonnet-20241022',
+            credentials: { type: 'api-key', apiKey: 'test-key' },
+          },
+        },
+        debugMode: false,
+      });
+
       // Simulate saving API key (which triggers onApiKeySaved callback)
       const saveButton = screen.getByRole('button', { name: /save api key/i });
       fireEvent.click(saveButton);
@@ -490,7 +505,7 @@ describe('Home Page Integration', () => {
       );
 
       // The textarea is disabled, so we can't really type, but test submit
-      const submitButton = screen.getByTitle('Stop');
+      const submitButton = screen.getByTestId('task-input-submit');
       fireEvent.click(submitButton);
 
       // Assert

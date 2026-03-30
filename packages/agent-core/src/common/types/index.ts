@@ -132,3 +132,5 @@ export type {
   BrowserStatusPayload,
   BrowserNavigatePayload,
 } from './browser-view.js';
+
+export * from './recording.js';

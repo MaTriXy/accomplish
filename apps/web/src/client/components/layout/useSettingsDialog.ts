@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { ProviderId, ConnectedProvider } from '@accomplish_ai/agent-core/common';
+import type {
+  ProviderId,
+  ConnectedProvider,
+  PrivacyConfig,
+} from '@accomplish_ai/agent-core/common';
 import { hasAnyReadyProvider, isProviderReady } from '@accomplish_ai/agent-core/common';
 import { getAccomplish } from '@/lib/accomplish';
 import { useProviderSettings } from '@/components/settings/hooks/useProviderSettings';
@@ -30,6 +34,7 @@ export function useSettingsDialog({
   const [skillsRefreshTrigger, setSkillsRefreshTrigger] = useState(0);
   const [debugMode, setDebugModeState] = useState(false);
   const [notificationsEnabled, setNotificationsEnabledState] = useState(true);
+  const [recordingPrivacyConfig, setRecordingPrivacyConfig] = useState<PrivacyConfig | null>(null);
 
   const {
     settings,
@@ -49,6 +54,7 @@ export function useSettingsDialog({
     refetch();
     accomplish.getDebugMode().then(setDebugModeState);
     accomplish.getNotificationsEnabled().then(setNotificationsEnabledState);
+    accomplish.getRecordingPrivacyConfig?.().then(setRecordingPrivacyConfig);
     accomplish.getVersion().then(setAppVersion);
   }, [open, refetch, accomplish]);
 
@@ -170,6 +176,19 @@ export function useSettingsDialog({
     setNotificationsEnabledState(newValue);
   }, [notificationsEnabled, accomplish]);
 
+  const handleRecordingPrivacyConfigChange = useCallback(
+    async (config: PrivacyConfig) => {
+      if (!accomplish.setRecordingPrivacyConfig) {
+        setRecordingPrivacyConfig(config);
+        return;
+      }
+
+      const saved = await accomplish.setRecordingPrivacyConfig(config);
+      setRecordingPrivacyConfig(saved);
+    },
+    [accomplish],
+  );
+
   const handleDone = useCallback(() => {
     if (!settings) {
       return;
@@ -227,6 +246,7 @@ export function useSettingsDialog({
     setSkillsRefreshTrigger,
     debugMode,
     notificationsEnabled,
+    recordingPrivacyConfig,
     handleOpenChange,
     handleSelectProvider,
     handleConnect,
@@ -235,6 +255,7 @@ export function useSettingsDialog({
     handleModelChange,
     handleDebugToggle,
     handleNotificationsToggle,
+    handleRecordingPrivacyConfigChange,
     handleDone,
     handleForceClose,
   };
