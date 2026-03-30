@@ -7,6 +7,7 @@ import { serializeForEvaluation, sleep } from './replay-utils';
 export async function waitForRecordedCondition(
   cdp: CdpClient,
   sessionId: string,
+  recording: Recording,
   selectors: SelectorStrategy[] | undefined,
   action: Recording['steps'][number]['action'] & { type: 'wait' },
   timeoutMs: number,
@@ -63,6 +64,10 @@ export async function waitForRecordedCondition(
   }
 
   if (action.condition.type === 'custom' && typeof action.condition.value === 'string') {
+    if (recording.metadata.importedAt || recording.metadata.importedFromBundleId) {
+      throw new Error('Custom waits are disallowed for imported recordings');
+    }
+
     const customCondition = action.condition.value;
     const startedAt = Date.now();
     while (Date.now() - startedAt < timeoutMs) {

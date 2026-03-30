@@ -34,7 +34,9 @@ export function normalizeReplayOptions(options?: Partial<ReplayOptions>): Replay
         ? Math.floor(options.stepTimeoutMs)
         : DEFAULT_REPLAY_OPTIONS.stepTimeoutMs,
     maxRetries:
-      typeof options?.maxRetries === 'number' && options.maxRetries >= 0
+      typeof options?.maxRetries === 'number' &&
+      Number.isFinite(options.maxRetries) &&
+      options.maxRetries >= 0
         ? Math.floor(options.maxRetries)
         : DEFAULT_REPLAY_OPTIONS.maxRetries,
   };

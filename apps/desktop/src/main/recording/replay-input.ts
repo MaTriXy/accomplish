@@ -62,6 +62,25 @@ export async function dispatchMouseClick(
   }
 }
 
+export async function dispatchMouseMove(
+  cdp: CdpClient,
+  sessionId: string,
+  point: Point,
+): Promise<void> {
+  await cdp.sendCommand(
+    'Input.dispatchMouseEvent',
+    {
+      type: 'mouseMoved',
+      x: point.x,
+      y: point.y,
+      button: 'none',
+      buttons: 0,
+      clickCount: 0,
+    },
+    sessionId,
+  );
+}
+
 function getCdpModifiers(modifiers: string[]): number {
   const normalizedModifiers = modifiers.map((modifier) => modifier.toLowerCase());
   let value = 0;
