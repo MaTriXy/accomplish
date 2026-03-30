@@ -44,6 +44,10 @@ function upsertRecording(recordings: Recording[], next: Recording): Recording[] 
   );
 }
 
+let loadRecordingsToken = 0;
+let loadRecordingToken = 0;
+let loadReplayRunsToken = 0;
+
 export const useRecordingStore = create<RecordingState>((set) => ({
   recordings: [],
   selectedRecording: null,
@@ -53,11 +57,18 @@ export const useRecordingStore = create<RecordingState>((set) => ({
 
   loadRecordings: async () => {
     const accomplish = getAccomplish();
+    const token = ++loadRecordingsToken;
     set({ isLoading: true, error: null });
     try {
       const recordings = await accomplish.listRecordings();
+      if (token !== loadRecordingsToken) {
+        return;
+      }
       set({ recordings, isLoading: false });
     } catch (error) {
+      if (token !== loadRecordingsToken) {
+        return;
+      }
       set({
         isLoading: false,
         error: toRecordingErrorMessage(error, 'Failed to load recordings'),
@@ -67,8 +78,12 @@ export const useRecordingStore = create<RecordingState>((set) => ({
 
   loadRecording: async (recordingId: string) => {
     const accomplish = getAccomplish();
+    const token = ++loadRecordingToken;
     try {
       const recording = await accomplish.getRecording(recordingId);
+      if (token !== loadRecordingToken) {
+        return null;
+      }
       set((state) => ({
         selectedRecording: recording,
         recordings: recording ? upsertRecording(state.recordings, recording) : state.recordings,
@@ -76,6 +91,9 @@ export const useRecordingStore = create<RecordingState>((set) => ({
       }));
       return recording;
     } catch (error) {
+      if (token !== loadRecordingToken) {
+        return null;
+      }
       set({
         selectedRecording: null,
         error: toRecordingErrorMessage(error, 'Failed to load recording'),
@@ -86,8 +104,12 @@ export const useRecordingStore = create<RecordingState>((set) => ({
 
   loadReplayRuns: async (recordingId: string) => {
     const accomplish = getAccomplish();
+    const token = ++loadReplayRunsToken;
     try {
       const runs = await accomplish.listReplayRuns(recordingId);
+      if (token !== loadReplayRunsToken) {
+        return [];
+      }
       set((state) => ({
         replayRuns: {
           ...state.replayRuns,
@@ -97,6 +119,9 @@ export const useRecordingStore = create<RecordingState>((set) => ({
       }));
       return runs;
     } catch (error) {
+      if (token !== loadReplayRunsToken) {
+        return [];
+      }
       set({
         error: toRecordingErrorMessage(error, 'Failed to load replay history'),
       });
