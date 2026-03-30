@@ -7,6 +7,7 @@ const CENTRAL_DIRECTORY_HEADER_SIGNATURE = 0x02014b50;
 const END_OF_CENTRAL_DIRECTORY_SIGNATURE = 0x06054b50;
 const ZIP_VERSION = 20;
 const ZIP_UTF8_FLAG = 0x0800;
+const MAX_ZIP_ENTRY_UNCOMPRESSED_SIZE = 25 * 1024 * 1024;
 
 interface BundleEntry {
   path: string;
@@ -230,6 +231,9 @@ function extractZipEntries(buffer: Buffer): Map<string, Buffer> {
     if (compressionMethod === 0) {
       data = Buffer.from(compressedData);
     } else if (compressionMethod === 8) {
+      if (uncompressedSize < 0 || uncompressedSize > MAX_ZIP_ENTRY_UNCOMPRESSED_SIZE) {
+        throw new Error(`Invalid ZIP bundle: declared size too large for ${fileName}`);
+      }
       try {
         data = zlib.inflateRawSync(compressedData);
       } catch (error) {

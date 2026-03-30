@@ -8,28 +8,40 @@ interface RecordingPrivacySectionProps {
 }
 
 function ToggleCard({
+  id,
   title,
   description,
   checked,
   onToggle,
   testId,
 }: {
+  id: string;
   title: string;
   description: string;
   checked: boolean;
   onToggle: () => void;
   testId?: string;
 }) {
+  const titleId = `${id}-title`;
+  const descriptionId = `${id}-description`;
+
   return (
     <div className="rounded-lg border border-border bg-card p-5">
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1">
-          <div className="font-medium text-foreground">{title}</div>
-          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{description}</p>
+          <div id={titleId} className="font-medium text-foreground">
+            {title}
+          </div>
+          <p id={descriptionId} className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+            {description}
+          </p>
         </div>
         <button
+          type="button"
           role="switch"
           aria-checked={checked}
+          aria-labelledby={titleId}
+          aria-describedby={descriptionId}
           data-testid={testId}
           onClick={onToggle}
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
@@ -79,6 +91,7 @@ export function RecordingPrivacySection({ config, onChange }: RecordingPrivacySe
         </h4>
         <div className="space-y-3">
           <ToggleCard
+            id="settings-recording-enabled"
             title="Enable session recording"
             description="Allow task runs to capture browser-tool actions into reusable recordings."
             checked={config.enabled}
@@ -86,6 +99,7 @@ export function RecordingPrivacySection({ config, onChange }: RecordingPrivacySe
             testId="settings-recording-enabled-toggle"
           />
           <ToggleCard
+            id="settings-recording-reasoning"
             title="Record agent reasoning"
             description="Store the agent reasoning text alongside recorded steps when it is available."
             checked={config.recordAgentReasoning}
@@ -97,18 +111,21 @@ export function RecordingPrivacySection({ config, onChange }: RecordingPrivacySe
             }
           />
           <ToggleCard
+            id="settings-recording-redact-emails"
             title="Redact email addresses"
             description="Replace detected email addresses before they are written into a recording."
             checked={config.redactEmails}
             onToggle={() => onChange({ ...config, redactEmails: !config.redactEmails })}
           />
           <ToggleCard
+            id="settings-recording-redact-secrets"
             title="Redact secrets and tokens"
             description="Mask API keys, bearer tokens, and other secret-like values in recorded inputs."
             checked={config.redactSecrets}
             onToggle={() => onChange({ ...config, redactSecrets: !config.redactSecrets })}
           />
           <ToggleCard
+            id="settings-recording-redact-url-params"
             title="Redact sensitive URL parameters"
             description="Strip query-string values for keys like token, auth, password, or session."
             checked={config.redactUrlQueryParams}
@@ -120,6 +137,7 @@ export function RecordingPrivacySection({ config, onChange }: RecordingPrivacySe
             }
           />
           <ToggleCard
+            id="settings-recording-redact-all-inputs"
             title="Redact all form inputs"
             description="Mask every typed or selected form value, not just fields that look sensitive."
             checked={config.redactAllFormInputs}
@@ -131,6 +149,7 @@ export function RecordingPrivacySection({ config, onChange }: RecordingPrivacySe
             }
           />
           <ToggleCard
+            id="settings-recording-capture-screenshots"
             title="Capture manual screenshot keyframes"
             description="Attach scrubbed JPEG keyframes to manual browser recordings for navigation, click, and form steps."
             checked={config.captureScreenshots}
@@ -142,6 +161,7 @@ export function RecordingPrivacySection({ config, onChange }: RecordingPrivacySe
             }
           />
           <ToggleCard
+            id="settings-recording-blur-screenshots"
             title="Blur the full screenshot"
             description="Apply a full-viewport blur to every captured keyframe instead of masking only sensitive fields."
             checked={config.blurAllScreenshots}
@@ -156,11 +176,17 @@ export function RecordingPrivacySection({ config, onChange }: RecordingPrivacySe
       </div>
 
       <div className="rounded-lg border border-border bg-card p-5">
-        <div className="font-medium text-foreground">Custom sensitive keys</div>
+        <label
+          htmlFor="settings-recording-custom-sensitive-keys"
+          className="block font-medium text-foreground"
+        >
+          Custom sensitive keys
+        </label>
         <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
           Comma-separated field hints and URL keys that should always be treated as sensitive.
         </p>
         <Input
+          id="settings-recording-custom-sensitive-keys"
           className="mt-4"
           value={config.customSensitiveKeys.join(', ')}
           onChange={handleCustomKeysChange}
@@ -175,10 +201,14 @@ export function RecordingPrivacySection({ config, onChange }: RecordingPrivacySe
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <label
+              htmlFor="settings-recording-max-width"
+              className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+            >
               Max Width
             </label>
             <Input
+              id="settings-recording-max-width"
               inputMode="numeric"
               value={String(config.maxScreenshotWidth)}
               onChange={handleScreenshotDimensionChange('maxScreenshotWidth')}
@@ -187,10 +217,14 @@ export function RecordingPrivacySection({ config, onChange }: RecordingPrivacySe
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <label
+              htmlFor="settings-recording-max-height"
+              className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+            >
               Max Height
             </label>
             <Input
+              id="settings-recording-max-height"
               inputMode="numeric"
               value={String(config.maxScreenshotHeight)}
               onChange={handleScreenshotDimensionChange('maxScreenshotHeight')}
