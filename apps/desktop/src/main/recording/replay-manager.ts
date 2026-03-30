@@ -57,6 +57,11 @@ interface PendingCommand {
   timeout: ReturnType<typeof setTimeout>;
 }
 
+interface Point {
+  x: number;
+  y: number;
+}
+
 class CdpClient {
   private ws: WebSocket | null = null;
   private nextId = 1;
@@ -573,6 +578,191 @@ async function evaluateExpression<T>(
   return (result.result?.value ?? null) as T;
 }
 
+async function resolveElementPoint(
+  cdp: CdpClient,
+  sessionId: string,
+  selectors?: SelectorStrategy[],
+): Promise<Point | null> {
+  return evaluateExpression<Point | null>(
+    cdp,
+    sessionId,
+    `
+      (() => {
+        ${buildSelectorResolver(selectors)}
+        const element = findElement();
+        if (!element) {
+          return null;
+        }
+        if (element instanceof HTMLElement) {
+          element.scrollIntoView({ block: 'center', inline: 'center' });
+        }
+        const rect = element.getBoundingClientRect();
+        return {
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2,
+        };
+      })()
+    `,
+  );
+}
+
+function getMouseButtonName(button: 'left' | 'middle' | 'right'): 'left' | 'middle' | 'right' {
+  return button;
+}
+
+async function dispatchMouseClick(
+  cdp: CdpClient,
+  sessionId: string,
+  point: Point,
+  button: 'left' | 'middle' | 'right',
+  clickCount: number,
+): Promise<void> {
+  const normalizedClickCount = Math.max(1, clickCount);
+  const buttonName = getMouseButtonName(button);
+
+  await cdp.sendCommand(
+    'Input.dispatchMouseEvent',
+    {
+      type: 'mouseMoved',
+      x: point.x,
+      y: point.y,
+      button: buttonName,
+      buttons: 0,
+      clickCount: 0,
+    },
+    sessionId,
+  );
+
+  for (let index = 0; index < normalizedClickCount; index += 1) {
+    const currentClickCount = index + 1;
+    await cdp.sendCommand(
+      'Input.dispatchMouseEvent',
+      {
+        type: 'mousePressed',
+        x: point.x,
+        y: point.y,
+        button: buttonName,
+        buttons: button === 'left' ? 1 : button === 'middle' ? 4 : 2,
+        clickCount: currentClickCount,
+      },
+      sessionId,
+    );
+    await cdp.sendCommand(
+      'Input.dispatchMouseEvent',
+      {
+        type: 'mouseReleased',
+        x: point.x,
+        y: point.y,
+        button: buttonName,
+        buttons: 0,
+        clickCount: currentClickCount,
+      },
+      sessionId,
+    );
+  }
+}
+
+function getCdpModifiers(modifiers: string[]): number {
+  const normalizedModifiers = modifiers.map((modifier) => modifier.toLowerCase());
+  let flags = 0;
+  if (normalizedModifiers.includes('alt')) {
+    flags |= 1;
+  }
+  if (normalizedModifiers.includes('control') || normalizedModifiers.includes('ctrl')) {
+    flags |= 2;
+  }
+  if (
+    normalizedModifiers.includes('meta') ||
+    normalizedModifiers.includes('cmd') ||
+    normalizedModifiers.includes('command')
+  ) {
+    flags |= 4;
+  }
+  if (normalizedModifiers.includes('shift')) {
+    flags |= 8;
+  }
+  return flags;
+}
+
+function getKeyDefinition(key: string): {
+  key: string;
+  code: string;
+  windowsVirtualKeyCode: number;
+  text?: string;
+} {
+  const knownKeys: Record<string, { code: string; windowsVirtualKeyCode: number; text?: string }> =
+    {
+      Enter: { code: 'Enter', windowsVirtualKeyCode: 13, text: '\r' },
+      Tab: { code: 'Tab', windowsVirtualKeyCode: 9 },
+      Escape: { code: 'Escape', windowsVirtualKeyCode: 27 },
+      ArrowLeft: { code: 'ArrowLeft', windowsVirtualKeyCode: 37 },
+      ArrowUp: { code: 'ArrowUp', windowsVirtualKeyCode: 38 },
+      ArrowRight: { code: 'ArrowRight', windowsVirtualKeyCode: 39 },
+      ArrowDown: { code: 'ArrowDown', windowsVirtualKeyCode: 40 },
+      Backspace: { code: 'Backspace', windowsVirtualKeyCode: 8 },
+      Delete: { code: 'Delete', windowsVirtualKeyCode: 46 },
+      ' ': { code: 'Space', windowsVirtualKeyCode: 32, text: ' ' },
+    };
+  const known = knownKeys[key];
+  if (known) {
+    return { key, ...known };
+  }
+  if (key.length === 1) {
+    const upper = key.toUpperCase();
+    const charCode = upper.charCodeAt(0);
+    const isDigit = /[0-9]/.test(key);
+    return {
+      key,
+      code: isDigit ? `Digit${key}` : `Key${upper}`,
+      windowsVirtualKeyCode: charCode,
+      text: key,
+    };
+  }
+  return {
+    key,
+    code: key,
+    windowsVirtualKeyCode: 0,
+  };
+}
+
+async function dispatchKeyboardInput(
+  cdp: CdpClient,
+  sessionId: string,
+  key: string,
+  modifiers: string[],
+): Promise<void> {
+  const definition = getKeyDefinition(key);
+  const cdpModifiers = getCdpModifiers(modifiers);
+  const shouldSendText = Boolean(definition.text) && (cdpModifiers & (1 | 2 | 4)) === 0;
+
+  await cdp.sendCommand(
+    'Input.dispatchKeyEvent',
+    {
+      type: shouldSendText ? 'keyDown' : 'rawKeyDown',
+      key: definition.key,
+      code: definition.code,
+      text: shouldSendText ? definition.text : undefined,
+      unmodifiedText: shouldSendText ? definition.text : undefined,
+      windowsVirtualKeyCode: definition.windowsVirtualKeyCode,
+      nativeVirtualKeyCode: definition.windowsVirtualKeyCode,
+      modifiers: cdpModifiers,
+    },
+    sessionId,
+  );
+  await cdp.sendCommand(
+    'Input.dispatchKeyEvent',
+    {
+      type: 'keyUp',
+      key: definition.key,
+      code: definition.code,
+      windowsVirtualKeyCode: definition.windowsVirtualKeyCode,
+      nativeVirtualKeyCode: definition.windowsVirtualKeyCode,
+      modifiers: cdpModifiers,
+    },
+    sessionId,
+  );
+}
+
 async function resolveElementNodeId(
   cdp: CdpClient,
   sessionId: string,
@@ -1019,77 +1209,15 @@ export class ReplayManager extends EventEmitter {
         return;
       }
       case 'click': {
-        const buttonCode = action.button === 'right' ? 2 : action.button === 'middle' ? 1 : 0;
-        const result = await evaluateExpression<{ ok: boolean; error?: string }>(
-          cdp,
-          sessionId,
-          `
-            (() => {
-              const button = ${buttonCode};
-              const clickCount = ${action.clickCount};
-              const dispatchClickSequence = (target, clientX, clientY) => {
-                const eventInit = {
-                  bubbles: true,
-                  cancelable: true,
-                  composed: true,
-                  clientX,
-                  clientY,
-                  button,
-                  buttons: button === 0 ? 1 : button === 1 ? 4 : 2,
-                  detail: clickCount,
-                };
-
-                target.dispatchEvent(new MouseEvent('mousedown', eventInit));
-                target.dispatchEvent(new MouseEvent('mouseup', eventInit));
-
-                if (button === 2) {
-                  target.dispatchEvent(new MouseEvent('contextmenu', eventInit));
-                  return;
-                }
-
-                if (button === 1) {
-                  target.dispatchEvent(new MouseEvent('auxclick', eventInit));
-                  return;
-                }
-
-                target.dispatchEvent(new MouseEvent('click', eventInit));
-                if (clickCount > 1) {
-                  target.dispatchEvent(new MouseEvent('dblclick', eventInit));
-                }
-              };
-              ${buildSelectorResolver(step.selectors)}
-              const element = findElement();
-              if (!element) {
-                if (typeof ${serializeForEvaluation(action.x)} === 'number' && typeof ${serializeForEvaluation(action.y)} === 'number') {
-                  const fallbackTarget = document.elementFromPoint(${action.x ?? 'undefined'}, ${action.y ?? 'undefined'});
-                  if (!fallbackTarget) {
-                    return { ok: false, error: 'Target element not found' };
-                  }
-                  dispatchClickSequence(fallbackTarget, ${action.x ?? 0}, ${action.y ?? 0});
-                  return { ok: true };
-                }
-                return { ok: false, error: 'Target element not found' };
-              }
-              if (element instanceof HTMLElement) {
-                element.scrollIntoView({ block: 'center', inline: 'center' });
-              }
-              const rect = element.getBoundingClientRect();
-              const clientX =
-                typeof ${serializeForEvaluation(action.x)} === 'number'
-                  ? ${action.x ?? 0}
-                  : rect.left + rect.width / 2;
-              const clientY =
-                typeof ${serializeForEvaluation(action.y)} === 'number'
-                  ? ${action.y ?? 0}
-                  : rect.top + rect.height / 2;
-              dispatchClickSequence(element, clientX, clientY);
-              return { ok: true };
-            })()
-          `,
-        );
-        if (!result.ok) {
-          throw new Error(result.error ?? 'Failed to click target');
+        const resolvedPoint = await resolveElementPoint(cdp, sessionId, step.selectors);
+        const point =
+          typeof action.x === 'number' && typeof action.y === 'number'
+            ? { x: action.x, y: action.y }
+            : resolvedPoint;
+        if (!point) {
+          throw new Error('Target element not found');
         }
+        await dispatchMouseClick(cdp, sessionId, point, action.button, action.clickCount);
         return;
       }
       case 'fill': {
@@ -1246,30 +1374,7 @@ export class ReplayManager extends EventEmitter {
         return;
       }
       case 'keypress': {
-        const normalizedModifiers = action.modifiers.map((modifier) => modifier.toLowerCase());
-        const result = await evaluateExpression<{ ok: boolean }>(
-          cdp,
-          sessionId,
-          `
-            (() => {
-              const target = document.activeElement || document.body;
-              const keyEventInit = {
-                key: ${serializeForEvaluation(action.key)},
-                bubbles: true,
-                ctrlKey: ${normalizedModifiers.includes('control') || normalizedModifiers.includes('ctrl')},
-                altKey: ${normalizedModifiers.includes('alt')},
-                shiftKey: ${normalizedModifiers.includes('shift')},
-                metaKey: ${normalizedModifiers.includes('meta') || normalizedModifiers.includes('cmd') || normalizedModifiers.includes('command')},
-              };
-              target.dispatchEvent(new KeyboardEvent('keydown', keyEventInit));
-              target.dispatchEvent(new KeyboardEvent('keyup', keyEventInit));
-              return { ok: true };
-            })()
-          `,
-        );
-        if (!result.ok) {
-          throw new Error(`Failed to send key ${action.key}`);
-        }
+        await dispatchKeyboardInput(cdp, sessionId, action.key, action.modifiers);
         return;
       }
       case 'tool-call': {
