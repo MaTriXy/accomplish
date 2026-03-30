@@ -101,10 +101,10 @@ export function Sidebar() {
             variant="outline"
             size="sm"
             className="w-full justify-center gap-2"
-            title="Recordings"
+            title={t('recordings')}
           >
             <VideoCamera className="h-4 w-4" />
-            <span>Recordings</span>
+            <span>{t('recordings')}</span>
           </Button>
         </div>
 
