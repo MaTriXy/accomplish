@@ -13,6 +13,8 @@ interface RecordingMigrationRow {
   data: string;
 }
 
+const EXTERNALIZED_RECORDING_DATA = '{"externalized":true}';
+
 function hasColumn(db: Database, tableName: string, columnName: string): boolean {
   const rows = db.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{ name: string }>;
   return rows.some((row) => row.name === columnName);
@@ -91,6 +93,10 @@ export const migration = {
 
     for (const row of rows) {
       const payload = row.data;
+      if (payload === EXTERNALIZED_RECORDING_DATA) {
+        continue;
+      }
+
       const { stepCount, durationMs } = inferMetadata(payload);
       const payloadFile = writePayloadFile(row.id, payload);
 
@@ -100,7 +106,7 @@ export const migration = {
         payloadFile.payloadPath,
         payloadFile.payloadSha256,
         payloadFile.payloadSize,
-        '{"externalized":true}',
+        EXTERNALIZED_RECORDING_DATA,
         row.id,
       );
     }
