@@ -44,6 +44,7 @@ function makeManualPageName(recordingId: string): string {
 
 export class ManualRecordingManager {
   private session: ManualRecordingSession | null = null;
+  private startingSession = false;
 
   constructor(private readonly recordingManager: RecordingManager) {}
 
@@ -54,18 +55,23 @@ export class ManualRecordingManager {
         return existing;
       }
     }
+    if (this.startingSession) {
+      throw new Error('A manual recording session is already starting');
+    }
+    this.startingSession = true;
 
     const normalizedStartUrl = normalizeStartUrl(startUrl);
-    await recoverDevBrowserServer(undefined, {
-      force: true,
-      reason: 'Preparing browser for manual recording...',
-    });
-
-    const recording = await this.recordingManager.startManualRecording(name, normalizedStartUrl);
+    let recording: Recording | null = null;
     const cdp = new CdpClient();
     let targetId: string | null = null;
 
     try {
+      await recoverDevBrowserServer(undefined, {
+        force: true,
+        reason: 'Preparing browser for manual recording...',
+      });
+
+      recording = await this.recordingManager.startManualRecording(name, normalizedStartUrl);
       const [{ pageName, targetId: resolvedTargetId }, wsEndpoint] = await Promise.all([
         this.createManualPage(recording.id, recording.metadata.viewport ?? DEFAULT_VIEWPORT),
         resolveBrowserWsEndpoint(),
@@ -100,21 +106,26 @@ export class ManualRecordingManager {
         cdp,
         cdpSessionId,
         lastPageUrl: initialUrl || recording.metadata.startUrl,
+        flushPromise: null,
         pollTimer: setInterval(() => {
-          void this.flushSessionEvents(session).catch((error) => {
+          void this.runSessionFlush(session).catch((error) => {
             void this.handleSessionPollingError(session, error);
           });
         }, MANUAL_RECORDER_POLL_MS),
       };
 
       this.session = session;
+      this.startingSession = false;
       return recording;
     } catch (error) {
+      this.startingSession = false;
       if (targetId) {
         await cdp.sendCommand('Target.closeTarget', { targetId }).catch(() => {});
       }
       await cdp.disconnect().catch(() => {});
-      this.recordingManager.finalizeManualRecording(recording.id, 'failed');
+      if (recording) {
+        this.recordingManager.finalizeManualRecording(recording.id, 'failed');
+      }
       throw error;
     }
   }
@@ -127,9 +138,16 @@ export class ManualRecordingManager {
     const session = this.session;
     this.session = null;
     clearInterval(session.pollTimer);
+    let finalizeStatus: 'failed' | undefined;
 
     try {
-      await this.flushSessionEvents(session);
+      await this.runSessionFlush(session);
+    } catch (error) {
+      finalizeStatus = 'failed';
+      log.error('Manual recording flush during stop failed', {
+        recordingId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       await session.cdp
         .sendCommand('Target.closeTarget', { targetId: session.targetId })
@@ -137,7 +155,7 @@ export class ManualRecordingManager {
       await session.cdp.disconnect().catch(() => {});
     }
 
-    return this.recordingManager.finalizeManualRecording(recordingId);
+    return this.recordingManager.finalizeManualRecording(recordingId, finalizeStatus);
   }
 
   getActiveRecording(): Recording | null {
@@ -239,7 +257,7 @@ export class ManualRecordingManager {
     if (isMissingSessionError(error)) {
       try {
         session.cdpSessionId = await this.attachToManualPage(session.cdp, session.targetId);
-        await this.flushSessionEvents(session);
+        await this.runSessionFlush(session);
         return;
       } catch (reattachError) {
         log.error('Manual recording session recovery failed', {
@@ -264,6 +282,20 @@ export class ManualRecordingManager {
     } finally {
       this.recordingManager.finalizeManualRecording(session.recordingId, 'failed');
     }
+  }
+
+  private async runSessionFlush(session: ManualRecordingSession): Promise<void> {
+    if (session.flushPromise) {
+      return session.flushPromise;
+    }
+
+    const flushPromise = this.flushSessionEvents(session).finally(() => {
+      if (session.flushPromise === flushPromise) {
+        session.flushPromise = null;
+      }
+    });
+    session.flushPromise = flushPromise;
+    return flushPromise;
   }
 
   private async flushSessionEvents(session: ManualRecordingSession): Promise<void> {
