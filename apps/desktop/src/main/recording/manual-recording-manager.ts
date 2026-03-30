@@ -538,6 +538,22 @@ function buildManualRecorderBootstrap(): string {
             });
             return;
           }
+          if (target instanceof HTMLInputElement) {
+            const inputType = target.type.toLowerCase();
+            if (inputType === 'file') {
+              const files = Array.from(target.files ?? []);
+              push({
+                kind: 'upload',
+                selectors,
+                fileNames: files.map((file) => file.name),
+                mimeTypes: files.map((file) => file.type || 'application/octet-stream'),
+              });
+              return;
+            }
+            if (inputType === 'checkbox' || inputType === 'radio') {
+              return;
+            }
+          }
           if ('value' in target || target.isContentEditable) {
             push({
               kind: 'fill',
