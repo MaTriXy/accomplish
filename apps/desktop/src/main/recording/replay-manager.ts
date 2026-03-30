@@ -25,7 +25,8 @@ const DEFAULT_REPLAY_OPTIONS: ReplayOptions = {
 const COMMAND_TIMEOUT_MS = 10_000;
 
 function serializeForEvaluation(value: unknown): string {
-  return JSON.stringify(value)
+  const serialized = JSON.stringify(value);
+  return (serialized === undefined ? 'undefined' : serialized)
     .replace(/\u2028/g, '\\u2028')
     .replace(/\u2029/g, '\\u2029');
 }
