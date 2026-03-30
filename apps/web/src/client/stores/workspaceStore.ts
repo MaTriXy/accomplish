@@ -33,6 +33,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     set({ isLoading: true });
     try {
       const accomplish = getAccomplish();
+      if (!accomplish.listWorkspaces || !accomplish.getActiveWorkspaceId) {
+        set({ workspaces: [], activeWorkspaceId: null, isLoading: false });
+        return;
+      }
       const [workspaces, activeId] = await Promise.all([
         accomplish.listWorkspaces(),
         accomplish.getActiveWorkspaceId(),

@@ -27,6 +27,12 @@ function translateSettingsKey(key: string, options?: Record<string, unknown>): s
 }
 
 const mockAccomplish = {
+  onTaskProgress: vi.fn().mockReturnValue(() => {}),
+  onTaskUpdate: vi.fn().mockReturnValue(() => {}),
+  onTaskSummary: vi.fn().mockReturnValue(() => {}),
+  onTodoUpdate: vi.fn().mockReturnValue(() => {}),
+  onAuthError: vi.fn().mockReturnValue(() => {}),
+  onWorkspaceChanged: vi.fn().mockReturnValue(() => {}),
   getOllamaConfig: vi.fn().mockResolvedValue(null),
   isE2EMode: vi.fn().mockResolvedValue(false),
   getProviderSettings: vi.fn().mockResolvedValue({
@@ -46,6 +52,9 @@ const mockAccomplish = {
   setConnectedProvider: vi.fn().mockResolvedValue(undefined),
   removeConnectedProvider: vi.fn().mockResolvedValue(undefined),
   setProviderDebugMode: vi.fn().mockResolvedValue(undefined),
+  fetchProviderModels: vi.fn().mockResolvedValue({ success: true, models: [] }),
+  getOpenAiBaseUrl: vi.fn().mockResolvedValue(''),
+  setOpenAiBaseUrl: vi.fn().mockResolvedValue(undefined),
   validateBedrockCredentials: vi.fn().mockResolvedValue({ valid: true }),
   saveBedrockCredentials: vi.fn().mockResolvedValue(undefined),
   getConnectors: vi.fn().mockResolvedValue([]),
@@ -62,6 +71,27 @@ const mockAccomplish = {
   getDebugMode: vi.fn().mockResolvedValue(false),
   getNotificationsEnabled: vi.fn().mockResolvedValue(true),
   setNotificationsEnabled: vi.fn().mockResolvedValue(undefined),
+  getSandboxConfig: vi.fn().mockResolvedValue({
+    mode: 'disabled',
+    allowedPaths: [],
+    allowedHosts: [],
+    networkRestricted: false,
+  }),
+  setSandboxConfig: vi.fn().mockResolvedValue(undefined),
+  getRecordingPrivacyConfig: vi.fn().mockResolvedValue({
+    enabled: true,
+    recordAgentReasoning: true,
+    redactEmails: true,
+    redactSecrets: true,
+    redactUrlQueryParams: true,
+    redactAllFormInputs: false,
+    captureScreenshots: true,
+    blurAllScreenshots: false,
+    maxScreenshotWidth: 960,
+    maxScreenshotHeight: 540,
+    customSensitiveKeys: [],
+  }),
+  setRecordingPrivacyConfig: vi.fn().mockResolvedValue(undefined),
   getVersion: vi.fn().mockResolvedValue('0.1.0-test'),
   fetchProviderModels: vi.fn().mockResolvedValue({ success: true, models: [] }),
   getSandboxConfig: vi.fn().mockResolvedValue({
@@ -76,10 +106,26 @@ const mockAccomplish = {
   onThemeChange: undefined,
 };
 
+Object.defineProperty(window, 'accomplish', {
+  value: mockAccomplish,
+  configurable: true,
+  writable: true,
+});
+
 // Mock the accomplish module
 vi.mock('@/lib/accomplish', () => ({
   getAccomplish: () => mockAccomplish,
 }));
+
+vi.mock('@/stores/taskStore', () => {
+  const useTaskStore = () => ({
+    startTask: vi.fn().mockResolvedValue(null),
+  });
+  useTaskStore.getState = () => ({
+    startTask: vi.fn().mockResolvedValue(null),
+  });
+  return { useTaskStore };
+});
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -275,7 +321,7 @@ describe('SettingsDialog Integration', () => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
         // Verify anthropic card has green background (is active)
         const anthropicCard = screen.getByTestId('provider-card-anthropic');
-        expect(anthropicCard.className).toContain('bg-[#e9f7e7]');
+        expect(anthropicCard.className).toContain('bg-provider-bg-active');
       });
 
       // Verify the initial state: anthropic is active
@@ -288,6 +334,9 @@ describe('SettingsDialog Integration', () => {
     it('should render the Slack authentication card', async () => {
       render(<SettingsDialog {...defaultProps} />);
 
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Connectors' })).toBeInTheDocument();
+      });
       fireEvent.click(screen.getByRole('button', { name: 'Connectors' }));
 
       await waitFor(() => {
@@ -305,6 +354,9 @@ describe('SettingsDialog Integration', () => {
 
       render(<SettingsDialog {...defaultProps} />);
 
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Connectors' })).toBeInTheDocument();
+      });
       fireEvent.click(screen.getByRole('button', { name: 'Connectors' }));
 
       await waitFor(() => {

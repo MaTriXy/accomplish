@@ -1,13 +1,17 @@
 import { useTranslation } from 'react-i18next';
+import type { PrivacyConfig } from '@accomplish_ai/agent-core/common';
 import { NotificationsSection } from '@/components/settings/NotificationsSection';
 import { DebugSection } from '@/components/settings/DebugSection';
 import { DaemonSection } from '@/components/settings/DaemonSection';
+import { RecordingPrivacySection } from '@/components/settings/RecordingPrivacySection';
 
 interface GeneralTabProps {
   notificationsEnabled: boolean;
   onNotificationsToggle: () => void;
   debugMode: boolean;
   onDebugToggle: () => void;
+  recordingPrivacyConfig: PrivacyConfig | null;
+  onRecordingPrivacyConfigChange: (config: PrivacyConfig) => void;
 }
 
 export function GeneralTab({
@@ -15,6 +19,8 @@ export function GeneralTab({
   onNotificationsToggle,
   debugMode,
   onDebugToggle,
+  recordingPrivacyConfig,
+  onRecordingPrivacyConfigChange,
 }: GeneralTabProps) {
   const { t } = useTranslation('settings');
 
@@ -33,6 +39,13 @@ export function GeneralTab({
           {t('developer.title')}
         </h4>
         <DebugSection debugMode={debugMode} onDebugToggle={onDebugToggle} />
+      </section>
+
+      <section>
+        <RecordingPrivacySection
+          config={recordingPrivacyConfig}
+          onChange={onRecordingPrivacyConfigChange}
+        />
       </section>
     </div>
   );

@@ -141,7 +141,6 @@ export function TaskLauncher() {
               selectedIndex={selectedIndex}
               filteredTasks={filteredTasks}
               onSelect={handleSelect}
-              onClose={closeLauncher}
               onKeyDown={handleKeyDown}
             />
           </DialogPrimitive.Portal>

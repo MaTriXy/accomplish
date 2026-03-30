@@ -23,6 +23,7 @@ export {
 } from './factories/index.js';
 
 export { createSandboxProvider } from './factories/sandbox.js';
+export { createRecordingManager } from './recording/index.js';
 
 // -----------------------------------------------------------------------------
 // API Interfaces (NEW - Public contracts)
@@ -85,6 +86,31 @@ export type {
   TranscriptionResult,
   TranscriptionError,
 } from './types/index.js';
+
+export type {
+  Recording,
+  RecordingAction,
+  ReplayErrorStrategy,
+  ReplayOptions,
+  ReplayRun,
+  ReplayStatus,
+  ReplayStepState,
+  RecordingMetadata,
+  RecordingOrigin,
+  RecordingParameter,
+  RecordingUpdateInput,
+  RecordingSource,
+  RecordingStatus,
+  RecordingStep,
+  SelectorStrategy,
+  PrivacyAnnotation,
+  PrivacyConfig,
+  PrivacyManifest,
+  WaitCondition,
+  ElementSnapshot,
+} from './recording/index.js';
+
+export { DEFAULT_PRIVACY_CONFIG, RECORDING_SCHEMA_VERSION } from './recording/index.js';
 
 // -----------------------------------------------------------------------------
 // Types (from ./types.ts)

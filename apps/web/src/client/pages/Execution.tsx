@@ -52,7 +52,13 @@ export default function ExecutionPage() {
         initialTab={s.settingsInitialTab}
       />
       <div className="h-full flex flex-col bg-background relative">
-        <ExecutionHeader prompt={s.currentTask.prompt} status={s.currentTask.status} />
+        <ExecutionHeader
+          prompt={s.currentTask.prompt}
+          status={s.currentTask.status}
+          showRecordingToggle={s.currentTask.status === 'running'}
+          isRecordingActive={Boolean(s.activeRecording)}
+          onToggleRecording={() => void s.handleRecordingToggle()}
+        />
 
         <BrowserInstallModal
           setupProgress={s.setupProgress}
@@ -61,7 +67,6 @@ export default function ExecutionPage() {
           setupDownloadStep={s.setupDownloadStep}
         />
 
-        {/* Queued — full page */}
         {s.currentTask.status === 'queued' && s.currentTask.messages.length === 0 && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
@@ -79,7 +84,6 @@ export default function ExecutionPage() {
           </motion.div>
         )}
 
-        {/* Queued — inline with messages */}
         {s.currentTask.status === 'queued' && s.currentTask.messages.length > 0 && (
           <div className="flex-1 overflow-y-auto px-6 py-6">
             <div className="max-w-4xl mx-auto space-y-4">
@@ -109,7 +113,6 @@ export default function ExecutionPage() {
           </div>
         )}
 
-        {/* Running messages */}
         {s.currentTask.status !== 'queued' && (
           <ConversationView
             currentTask={s.currentTask}
@@ -139,7 +142,6 @@ export default function ExecutionPage() {
           />
         )}
 
-        {/* Running — stop button */}
         {s.currentTask.status === 'running' && !s.permissionRequest && (
           <div className="flex-shrink-0 border-t border-border bg-card/50 px-6 py-4">
             <div className="max-w-4xl mx-auto">
@@ -164,7 +166,6 @@ export default function ExecutionPage() {
           </div>
         )}
 
-        {/* Follow-up input */}
         {s.canFollowUp && (
           <FollowUpInput
             followUp={s.followUp}

@@ -19,6 +19,12 @@ const renderWithRouter = (ui: React.ReactElement) => {
 
 // Mock accomplish API
 const mockAccomplish = {
+  onTaskProgress: vi.fn().mockReturnValue(() => {}),
+  onTaskUpdate: vi.fn().mockReturnValue(() => {}),
+  onTaskSummary: vi.fn().mockReturnValue(() => {}),
+  onTodoUpdate: vi.fn().mockReturnValue(() => {}),
+  onAuthError: vi.fn().mockReturnValue(() => {}),
+  onWorkspaceChanged: vi.fn().mockReturnValue(() => {}),
   logEvent: vi.fn().mockResolvedValue(undefined),
   getSelectedModel: vi.fn().mockResolvedValue({ provider: 'anthropic', id: 'claude-3-opus' }),
   getOllamaConfig: vi.fn().mockResolvedValue(null),
@@ -45,12 +51,30 @@ const mockAccomplish = {
   saveBedrockCredentials: vi.fn().mockResolvedValue(undefined),
   speechIsConfigured: vi.fn().mockResolvedValue(true),
   getEnabledSkills: vi.fn().mockResolvedValue([]),
+  getUserSkillsPath: vi.fn().mockResolvedValue('/tmp/skills'),
+  getPlatform: vi.fn().mockResolvedValue('darwin'),
 };
 
 // Mock the accomplish module
 vi.mock('@/lib/accomplish', () => ({
   getAccomplish: () => mockAccomplish,
 }));
+
+vi.mock('@/stores/taskStore', () => {
+  const useTaskStore = () => ({
+    startTask: vi.fn().mockResolvedValue(null),
+  });
+  useTaskStore.getState = () => ({
+    startTask: vi.fn().mockResolvedValue(null),
+  });
+  return { useTaskStore };
+});
+
+Object.defineProperty(window, 'accomplish', {
+  value: mockAccomplish,
+  configurable: true,
+  writable: true,
+});
 
 // Mock Radix Tooltip to render content directly (portals don't work in jsdom)
 vi.mock('@/components/ui/tooltip', () => ({

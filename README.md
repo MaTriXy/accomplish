@@ -212,6 +212,16 @@ Accomplish runs locally on your machine. Your files stay on your device, and you
 
 <br />
 
+## Feature docs
+
+- [Session Recording & Replay](docs/session-recording.md) for usage, privacy behavior, payload shape, replay behavior, and sharing/export details
+
+<br />
+
+---
+
+<br />
+
 ## Screenshots and Demo
 
 A quick look at Accomplish on macOS, plus a short demo video.

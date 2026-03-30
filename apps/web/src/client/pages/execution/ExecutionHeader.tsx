@@ -74,7 +74,21 @@ function StatusBadge({ status }: { status: TaskStatus }) {
   }
 }
 
-export function ExecutionHeader({ prompt, status }: { prompt: string; status: TaskStatus }) {
+interface ExecutionHeaderProps {
+  prompt: string;
+  status: TaskStatus;
+  showRecordingToggle?: boolean;
+  isRecordingActive?: boolean;
+  onToggleRecording?: () => void;
+}
+
+export function ExecutionHeader({
+  prompt,
+  status,
+  showRecordingToggle = false,
+  isRecordingActive = false,
+  onToggleRecording,
+}: ExecutionHeaderProps) {
   const navigate = useNavigate();
 
   return (
@@ -97,6 +111,16 @@ export function ExecutionHeader({ prompt, status }: { prompt: string; status: Ta
             </span>
           </div>
         </div>
+        {showRecordingToggle && onToggleRecording && (
+          <Button
+            variant={isRecordingActive ? 'destructive' : 'outline'}
+            size="sm"
+            className="ml-4 shrink-0"
+            onClick={onToggleRecording}
+          >
+            {isRecordingActive ? 'Stop recording' : 'Record steps'}
+          </Button>
+        )}
       </div>
     </div>
   );

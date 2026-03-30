@@ -103,3 +103,17 @@ export {
   setScheduledTaskEnabled,
   updateScheduledTaskLastRun,
 } from './scheduled-tasks.js';
+
+export {
+  listRecordings,
+  getRecording,
+  getActiveRecordingForTask,
+  saveRecording,
+  deleteRecording,
+  listReplayRunsForRecording,
+  getReplayRun,
+  saveReplayRun,
+  markIncompleteReplayRunsAsFailed,
+  getRecordingPrivacyConfig,
+  setRecordingPrivacyConfig,
+} from './recordings.js';

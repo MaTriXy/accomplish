@@ -1,5 +1,8 @@
 import type { Database } from 'better-sqlite3';
 import type { Migration } from './index.js';
+import { createConsoleLogger } from '../../utils/logging.js';
+
+const log = createConsoleLogger({ prefix: 'Migration:v002' });
 
 export const migration: Migration = {
   version: 2,
@@ -8,13 +11,13 @@ export const migration: Migration = {
       ALTER TABLE app_settings
       ADD COLUMN azure_foundry_config TEXT
     `);
-    console.log('[v002] Added azure_foundry_config column');
+    log.info('Added azure_foundry_config column');
   },
   down(db: Database): void {
     db.exec(`
       ALTER TABLE app_settings
       DROP COLUMN azure_foundry_config
     `);
-    console.log('[v002] Removed azure_foundry_config column');
+    log.info('Removed azure_foundry_config column');
   },
 };

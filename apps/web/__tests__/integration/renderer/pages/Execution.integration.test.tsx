@@ -66,6 +66,11 @@ const mockAccomplish = {
   onTaskUpdateBatch: mockOnTaskUpdateBatch.mockReturnValue(() => {}),
   onPermissionRequest: mockOnPermissionRequest.mockReturnValue(() => {}),
   onTaskStatusChange: mockOnTaskStatusChange.mockReturnValue(() => {}),
+  onTaskProgress: vi.fn().mockReturnValue(() => {}),
+  onTaskSummary: vi.fn().mockReturnValue(() => {}),
+  onTodoUpdate: vi.fn().mockReturnValue(() => {}),
+  onAuthError: vi.fn().mockReturnValue(() => {}),
+  onWorkspaceChanged: vi.fn().mockReturnValue(() => {}),
   onDebugLog: vi.fn().mockReturnValue(() => {}),
   onDebugModeChange: vi.fn().mockReturnValue(() => {}),
   getSelectedModel: vi.fn().mockResolvedValue({ provider: 'anthropic', id: 'claude-3-opus' }),
@@ -540,7 +545,7 @@ describe('Execution Page Integration', () => {
       });
     });
 
-    it('should call sendFollowUp with continue when Continue button is clicked', async () => {
+    it('should not render a continue action for inline permission questions', () => {
       mockStoreState.currentTask = createMockTask('task-123', 'Task', 'waiting_permission');
       mockStoreState.permissionRequests = {
         'task-123': {
@@ -554,12 +559,7 @@ describe('Execution Page Integration', () => {
 
       renderWithRouter('task-123');
 
-      const continueButton = screen.getByRole('button', { name: /continue task/i });
-      fireEvent.click(continueButton);
-
-      await waitFor(() => {
-        expect(mockSendFollowUp).toHaveBeenCalledWith('continue', []);
-      });
+      expect(screen.queryByRole('button', { name: /continue task/i })).not.toBeInTheDocument();
     });
 
     it('should call respondToPermission with deny when Deny is clicked', async () => {
@@ -724,7 +724,7 @@ describe('Execution Page Integration', () => {
 
       renderWithRouter('task-123');
 
-      const sendButton = screen.getByRole('button', { name: /send/i });
+      const sendButton = screen.getByTestId('execution-follow-up-send-button');
       expect(sendButton).toBeDisabled();
     });
 
@@ -1083,8 +1083,7 @@ describe('Execution Page Integration', () => {
 
       renderWithRouter('task-123');
 
-      // Assert - cancelled tasks render a badge span, not a heading
-      expect(screen.getByText(/cancelled/i)).toBeInTheDocument();
+      expect(screen.getByText('Task Cancelled')).toBeInTheDocument();
     });
 
     it('should show Continue button for interrupted task with session and messages', () => {
@@ -1181,6 +1180,7 @@ describe('Execution Page Integration', () => {
       };
       mockStoreState.currentTask = task;
       mockAccomplish.getSlackMcpOauthStatus
+        .mockResolvedValueOnce({ connected: false, pendingAuthorization: false })
         .mockResolvedValueOnce({ connected: false, pendingAuthorization: false })
         .mockResolvedValueOnce({ connected: true, pendingAuthorization: false });
 
@@ -1409,7 +1409,7 @@ describe('Execution Page Integration', () => {
       const oversizedValue = 'a'.repeat(PROMPT_DEFAULT_MAX_LENGTH + 1);
       fireEvent.change(input, { target: { value: oversizedValue } });
 
-      const sendButton = screen.getByRole('button', { name: /send/i });
+      const sendButton = screen.getByTestId('execution-follow-up-send-button');
       expect(sendButton).toBeDisabled();
     });
 
@@ -1439,7 +1439,7 @@ describe('Execution Page Integration', () => {
       const oversizedValue = 'a'.repeat(PROMPT_DEFAULT_MAX_LENGTH + 1);
       fireEvent.change(input, { target: { value: oversizedValue } });
 
-      const sendButton = screen.getByRole('button', { name: /send/i });
+      const sendButton = screen.getByTestId('execution-follow-up-send-button');
       fireEvent.click(sendButton);
 
       await waitFor(() => {
@@ -1447,7 +1447,33 @@ describe('Execution Page Integration', () => {
       });
     });
 
-    it('should enable send button when follow-up is valid', () => {
+    it('should show "Enter a message" tooltip when follow-up is empty', () => {
+      const task = createMockTask('task-123', 'Done', 'completed');
+      task.sessionId = 'session-abc';
+      mockStoreState.currentTask = task;
+
+      renderWithRouter('task-123');
+
+      const sendButton = screen.getByTestId('execution-follow-up-send-button');
+      expect(sendButton).toHaveAttribute('title', 'common:tooltips.enterMessage');
+    });
+
+    it('should show "Message is too long" tooltip when follow-up exceeds limit', () => {
+      const task = createMockTask('task-123', 'Done', 'completed');
+      task.sessionId = 'session-abc';
+      mockStoreState.currentTask = task;
+
+      renderWithRouter('task-123');
+
+      const input = screen.getByTestId('execution-follow-up-input');
+      const oversizedValue = 'a'.repeat(PROMPT_DEFAULT_MAX_LENGTH + 1);
+      fireEvent.change(input, { target: { value: oversizedValue } });
+
+      const sendButton = screen.getByTestId('execution-follow-up-send-button');
+      expect(sendButton).toHaveAttribute('title', 'common:tooltips.messageTooLong');
+    });
+
+    it('should show "Send" tooltip when follow-up is valid', () => {
       const task = createMockTask('task-123', 'Done', 'completed');
       task.sessionId = 'session-abc';
       mockStoreState.currentTask = task;
@@ -1457,8 +1483,8 @@ describe('Execution Page Integration', () => {
       const input = screen.getByTestId('execution-follow-up-input');
       fireEvent.change(input, { target: { value: 'Normal follow-up' } });
 
-      const sendButton = screen.getByRole('button', { name: /send/i });
-      expect(sendButton).not.toBeDisabled();
+      const sendButton = screen.getByTestId('execution-follow-up-send-button');
+      expect(sendButton).toHaveAttribute('title', 'Send');
     });
   });
 

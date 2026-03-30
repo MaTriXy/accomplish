@@ -10,13 +10,13 @@ import { staggerContainer } from '@/lib/animations';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import ConversationListItem from './ConversationListItem';
-import SettingsDialog from './SettingsDialog';
+import { SettingsDialog } from './SettingsDialog';
 import WorkspaceSelector from './WorkspaceSelector';
-import { Gear, ChatText, MagnifyingGlass } from '@phosphor-icons/react';
 import { DaemonStatusDot } from '@/components/DaemonStatusDot';
+import { Gear, ChatText, MagnifyingGlass, VideoCamera } from '@phosphor-icons/react';
 import logoImage from '/assets/logo-1.png';
 
-export default function Sidebar() {
+export function Sidebar() {
   const navigate = useNavigate();
   const [showSettings, setShowSettings] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<
@@ -95,6 +95,19 @@ export default function Sidebar() {
           </Button>
         </div>
 
+        <div className="px-3 py-3 border-b border-border">
+          <Button
+            onClick={() => navigate('/recordings')}
+            variant="outline"
+            size="sm"
+            className="w-full justify-center gap-2"
+            title="Recordings"
+          >
+            <VideoCamera className="h-4 w-4" />
+            <span>Recordings</span>
+          </Button>
+        </div>
+
         {/* Conversation List */}
         <ScrollArea className="flex-1">
           <div className="p-2 space-y-1">
@@ -165,3 +178,5 @@ export default function Sidebar() {
     </>
   );
 }
+
+export default Sidebar;

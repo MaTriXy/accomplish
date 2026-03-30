@@ -1,5 +1,6 @@
 import type { Database } from 'better-sqlite3';
 import { FutureSchemaError, MigrationError } from './errors.js';
+import { createConsoleLogger } from '../../utils/logging.js';
 
 export interface Migration {
   version: number;
@@ -30,6 +31,9 @@ import { migration as v020 } from './v020-messaging.js';
 import { migration as v021 } from './v021-close-behavior.js';
 import { migration as v022 } from './v022-remove-run-in-background.js';
 import { migration as v023 } from './v023-scheduled-tasks.js';
+import { migration as v024 } from './v024-recordings.js';
+import { migration as v025 } from './v025-replay-runs.js';
+import { migration as v026 } from './v026-recording-payload-files.js';
 
 const migrations: Migration[] = [
   v001,
@@ -55,13 +59,18 @@ const migrations: Migration[] = [
   v021,
   v022,
   v023,
+  v024,
+  v025,
+  v026,
 ];
+const log = createConsoleLogger({ prefix: 'Migrations' });
+
 export function registerMigration(migration: Migration): void {
   migrations.push(migration);
   migrations.sort((a, b) => a.version - b.version);
 }
 
-export const CURRENT_VERSION = 23;
+export const CURRENT_VERSION = 26;
 export function getStoredVersion(db: Database): number {
   try {
     const tableExists = db
@@ -91,27 +100,27 @@ export function setStoredVersion(db: Database, version: number): void {
 export function runMigrations(db: Database): void {
   const storedVersion = getStoredVersion(db);
 
-  console.log(`[Migrations] Stored version: ${storedVersion}, App version: ${CURRENT_VERSION}`);
+  log.info(`Stored version ${storedVersion}, app schema ${CURRENT_VERSION}`);
 
   if (storedVersion > CURRENT_VERSION) {
     throw new FutureSchemaError(storedVersion, CURRENT_VERSION);
   }
 
   if (storedVersion === CURRENT_VERSION) {
-    console.log('[Migrations] Database is up to date');
+    log.info('Database is up to date');
     return;
   }
 
   for (const migration of migrations) {
     if (migration.version > storedVersion) {
-      console.log(`[Migrations] Running migration v${migration.version}`);
+      log.info(`Running migration v${migration.version}`);
 
       try {
         db.transaction(() => {
           migration.up(db);
           setStoredVersion(db, migration.version);
         })();
-        console.log(`[Migrations] Migration v${migration.version} complete`);
+        log.info(`Migration v${migration.version} complete`);
       } catch (err) {
         throw new MigrationError(
           migration.version,
@@ -121,7 +130,7 @@ export function runMigrations(db: Database): void {
     }
   }
 
-  console.log('[Migrations] All migrations complete');
+  log.info('All migrations complete');
 }
 
 export { FutureSchemaError, MigrationError, CorruptDatabaseError } from './errors.js';
