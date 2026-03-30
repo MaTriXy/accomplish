@@ -7,7 +7,7 @@ import type {
   RecordingUpdateInput,
   ReplayOptions,
   ReplayRun,
-} from '@accomplish_ai/agent-core/common';
+} from '@accomplish_ai/agent-core';
 import {
   ArrowCounterClockwise,
   ArrowLeft,

@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import type { PrivacyConfig } from '@accomplish_ai/agent-core/common';
+import type { PrivacyConfig } from '@accomplish_ai/agent-core';
 import { NotificationsSection } from '@/components/settings/NotificationsSection';
 import { DebugSection } from '@/components/settings/DebugSection';
 import { DaemonSection } from '@/components/settings/DaemonSection';
