@@ -2,7 +2,7 @@ import path from 'path';
 import type { Recording, ReplayOptions } from '@accomplish_ai/agent-core/common';
 import { evaluateExpression, waitForDocumentReady } from './browser-runtime';
 import { CdpClient } from './cdp-client';
-import { dispatchKeyboardInput, dispatchMouseClick } from './replay-input';
+import { dispatchKeyboardInput, dispatchMouseClick, dispatchMouseMove } from './replay-input';
 import {
   buildSelectorResolver,
   resolveElementNodeId,
@@ -27,7 +27,7 @@ export function resolveParameterValue(
   for (const parameter of recording.parameters) {
     const replacement =
       overrides[parameter.id] ?? overrides[parameter.name] ?? parameter.defaultValue;
-    if (!replacement) {
+    if (replacement === undefined) {
       continue;
     }
 
@@ -52,7 +52,9 @@ function resolveUploadFilePaths(
     overrides[buildUploadParameterId(step.id)] ?? overrides[buildUploadParameterName(step.index)];
   const parameterPaths = uploadOverride ? parseUploadPathList(uploadOverride) : [];
   if (parameterPaths.length > 0) {
-    return parameterPaths;
+    return parameterPaths
+      .map((filePath) => resolveParameterValue(recording, filePath, overrides).trim())
+      .filter((filePath) => Boolean(filePath) && path.isAbsolute(filePath));
   }
 
   return step.action.fileNames
@@ -181,25 +183,11 @@ export async function executeReplayStep(
       return;
     }
     case 'hover': {
-      const result = await evaluateExpression<{ ok: boolean; error?: string }>(
-        cdp,
-        sessionId,
-        `
-          (() => {
-            ${buildSelectorResolver(step.selectors)}
-            const element = findElement();
-            if (!element) {
-              return { ok: false, error: 'Target element not found' };
-            }
-            element.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-            element.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
-            return { ok: true };
-          })()
-        `,
-      );
-      if (!result.ok) {
-        throw new Error(result.error ?? 'Failed to hover target');
+      const point = await resolveElementPoint(cdp, sessionId, step.selectors);
+      if (!point) {
+        throw new Error('Target element not found');
       }
+      await dispatchMouseMove(cdp, sessionId, point);
       return;
     }
     case 'scroll': {
@@ -233,7 +221,14 @@ export async function executeReplayStep(
       return;
     }
     case 'wait': {
-      await waitForRecordedCondition(cdp, sessionId, step.selectors, action, options.stepTimeoutMs);
+      await waitForRecordedCondition(
+        cdp,
+        sessionId,
+        recording,
+        step.selectors,
+        action,
+        options.stepTimeoutMs,
+      );
       return;
     }
     case 'keypress': {

@@ -137,7 +137,7 @@ function isValidRecordingAction(value: unknown): value is RecordingAction {
     case 'type':
       return typeof value.text === 'string';
     case 'fill':
-      return typeof value.value === 'string';
+      return typeof value.value === 'string' && typeof value.clearFirst === 'boolean';
     case 'select':
       return (
         Array.isArray(value.values) && value.values.every((entry) => typeof entry === 'string')
