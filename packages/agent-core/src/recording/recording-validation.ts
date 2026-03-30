@@ -25,8 +25,12 @@ function isValidRecordingMetadata(value: unknown): value is RecordingMetadata {
     return false;
   }
 
-  const source = value.sourceTaskId;
-  if (source !== undefined && typeof source !== 'string') {
+  if (typeof value.source !== 'string') {
+    return false;
+  }
+
+  const sourceTaskId = value.sourceTaskId;
+  if (sourceTaskId !== undefined && typeof sourceTaskId !== 'string') {
     return false;
   }
 
@@ -155,7 +159,10 @@ function isValidRecordingAction(value: unknown): value is RecordingAction {
         value.modifiers.every((entry) => typeof entry === 'string')
       );
     case 'tool-call':
-      return typeof value.toolName === 'string' && typeof value.summary === 'string';
+      return (
+        typeof value.toolName === 'string' &&
+        (value.outputSummary === undefined || typeof value.outputSummary === 'string')
+      );
     case 'upload':
       return (
         Array.isArray(value.fileNames) &&
@@ -233,7 +240,6 @@ export function isRecording(value: unknown): value is Recording {
     typeof value.createdAt === 'string' &&
     typeof value.updatedAt === 'string' &&
     typeof value.status === 'string' &&
-    typeof value.source === 'string' &&
     Array.isArray(value.tags) &&
     value.tags.length <= MAX_IMPORTED_TAGS &&
     value.tags.every((entry) => typeof entry === 'string') &&

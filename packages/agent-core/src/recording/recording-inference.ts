@@ -250,13 +250,16 @@ export function createRecording(options: {
       startUrl: options.startUrl || FALLBACK_PAGE_URL,
       stepCount: 0,
       durationMs: 0,
-      viewport: DEFAULT_VIEWPORT,
+      viewport: { ...DEFAULT_VIEWPORT },
       userAgent: DEFAULT_USER_AGENT,
       appVersion: process.env.npm_package_version ?? 'unknown',
       platform: process.platform,
     },
     privacyManifest: {
-      configSnapshot: DEFAULT_PRIVACY_CONFIG,
+      configSnapshot: {
+        ...DEFAULT_PRIVACY_CONFIG,
+        customSensitiveKeys: [...DEFAULT_PRIVACY_CONFIG.customSensitiveKeys],
+      },
       redactions: [],
     },
   };

@@ -27,7 +27,12 @@ export function normalizeReplayOptions(options?: Partial<ReplayOptions>): Replay
         : DEFAULT_REPLAY_OPTIONS.speed,
     parameters: options?.parameters ?? DEFAULT_REPLAY_OPTIONS.parameters,
     errorStrategy: options?.errorStrategy ?? DEFAULT_REPLAY_OPTIONS.errorStrategy,
-    stepTimeoutMs: options?.stepTimeoutMs ?? DEFAULT_REPLAY_OPTIONS.stepTimeoutMs,
+    stepTimeoutMs:
+      typeof options?.stepTimeoutMs === 'number' &&
+      Number.isFinite(options.stepTimeoutMs) &&
+      options.stepTimeoutMs >= 0
+        ? Math.floor(options.stepTimeoutMs)
+        : DEFAULT_REPLAY_OPTIONS.stepTimeoutMs,
     maxRetries:
       typeof options?.maxRetries === 'number' && options.maxRetries >= 0
         ? Math.floor(options.maxRetries)

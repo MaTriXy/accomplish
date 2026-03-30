@@ -1,5 +1,5 @@
 import type { ChangeEvent } from 'react';
-import type { PrivacyConfig } from '@accomplish_ai/agent-core/common';
+import type { PrivacyConfig } from '@accomplish_ai/agent-core';
 import { Input } from '@/components/ui/input';
 
 interface RecordingPrivacySectionProps {
@@ -49,7 +49,7 @@ function ToggleCard({
           }`}
         >
           <span
-            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
+            className={`inline-block h-4 w-4 transform rounded-full bg-background shadow-sm transition-transform duration-200 ${
               checked ? 'translate-x-6' : 'translate-x-1'
             }`}
           />

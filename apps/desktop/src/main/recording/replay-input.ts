@@ -1,8 +1,14 @@
 import { CdpClient } from './cdp-client';
 import type { Point } from './replay-types';
 
-function getMouseButtonName(button: 'left' | 'middle' | 'right'): 'left' | 'middle' | 'right' {
-  return button;
+function getMouseButtonMask(button: 'left' | 'middle' | 'right'): number {
+  if (button === 'right') {
+    return 2;
+  }
+  if (button === 'middle') {
+    return 4;
+  }
+  return 1;
 }
 
 export async function dispatchMouseClick(
@@ -13,7 +19,7 @@ export async function dispatchMouseClick(
   clickCount: number,
 ): Promise<void> {
   const normalizedClickCount = Math.max(1, clickCount);
-  const buttonName = getMouseButtonName(button);
+  const buttonMask = getMouseButtonMask(button);
 
   await cdp.sendCommand(
     'Input.dispatchMouseEvent',
@@ -35,8 +41,8 @@ export async function dispatchMouseClick(
         type: 'mousePressed',
         x: point.x,
         y: point.y,
-        button: buttonName,
-        buttons: 1,
+        button,
+        buttons: buttonMask,
         clickCount: index + 1,
       },
       sessionId,
@@ -47,7 +53,7 @@ export async function dispatchMouseClick(
         type: 'mouseReleased',
         x: point.x,
         y: point.y,
-        button: buttonName,
+        button,
         buttons: 0,
         clickCount: index + 1,
       },
