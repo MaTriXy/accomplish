@@ -9,6 +9,8 @@ import type {
 } from '@accomplish_ai/agent-core/common';
 import { getAccomplish } from '../lib/accomplish';
 
+let loadWorkspacesToken = 0;
+
 interface WorkspaceState {
   workspaces: Workspace[];
   activeWorkspaceId: string | null;
@@ -30,21 +32,28 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   isSwitching: false,
 
   loadWorkspaces: async () => {
+    const token = ++loadWorkspacesToken;
     set({ isLoading: true });
     try {
       const accomplish = getAccomplish();
       if (!accomplish.listWorkspaces || !accomplish.getActiveWorkspaceId) {
-        set({ workspaces: [], activeWorkspaceId: null, isLoading: false });
+        if (token === loadWorkspacesToken) {
+          set({ workspaces: [], activeWorkspaceId: null, isLoading: false });
+        }
         return;
       }
       const [workspaces, activeId] = await Promise.all([
         accomplish.listWorkspaces(),
         accomplish.getActiveWorkspaceId(),
       ]);
-      set({ workspaces, activeWorkspaceId: activeId, isLoading: false });
+      if (token === loadWorkspacesToken) {
+        set({ workspaces, activeWorkspaceId: activeId, isLoading: false });
+      }
     } catch (err) {
       logger.error('Failed to load workspaces:', err);
-      set({ isLoading: false });
+      if (token === loadWorkspacesToken) {
+        set({ isLoading: false });
+      }
     }
   },
 
