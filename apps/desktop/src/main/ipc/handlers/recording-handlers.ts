@@ -6,7 +6,7 @@ import type {
   ReplayRun,
   RecordingUpdateInput,
   ReplayOptions,
-} from '@accomplish_ai/agent-core/common';
+} from '@accomplish_ai/agent-core';
 import { getManualRecordingManager, getRecordingManager, getReplayManager } from '../../recording';
 
 let replayUpdateListener: ((run: ReplayRun) => void) | null = null;

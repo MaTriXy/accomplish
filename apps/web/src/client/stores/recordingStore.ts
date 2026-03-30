@@ -4,7 +4,7 @@ import type {
   RecordingUpdateInput,
   ReplayOptions,
   ReplayRun,
-} from '@accomplish_ai/agent-core/common';
+} from '@accomplish_ai/agent-core';
 import { getAccomplish } from '../lib/accomplish';
 
 function toRecordingErrorMessage(error: unknown, fallback: string): string {
