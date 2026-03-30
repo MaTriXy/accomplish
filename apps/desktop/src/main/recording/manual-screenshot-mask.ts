@@ -2,11 +2,78 @@ import type { PrivacyConfig, SelectorStrategy } from '@accomplish_ai/agent-core/
 import { evaluateExpression } from './browser-runtime';
 import { CdpClient } from './cdp-client';
 import type { ManualScreenshotMaskResult } from './manual-recording-types';
+import { buildSelectorResolver } from './replay-selector-resolver';
 
 function serializeForEvaluation(value: unknown): string {
-  return JSON.stringify(value)
+  const serialized = JSON.stringify(value);
+  return (serialized === undefined ? 'undefined' : serialized)
     .replace(/\u2028/g, '\\u2028')
     .replace(/\u2029/g, '\\u2029');
+}
+
+const EMAIL_SENSITIVE_KEYS = ['email', 'e-mail'];
+const SECRET_SENSITIVE_KEYS = [
+  'pass',
+  'password',
+  'otp',
+  'pin',
+  'token',
+  'secret',
+  'session',
+  'auth',
+  'api-key',
+  'apikey',
+  'verification',
+  'code',
+];
+
+function buildSensitiveMaskConfig(config: PrivacyConfig): {
+  redactAllFormInputs: boolean;
+  customSensitiveKeys: string[];
+  captureScreenshots: boolean;
+  blurAllScreenshots: boolean;
+  redactEmails: boolean;
+  redactSecrets: boolean;
+} {
+  if (!config.enabled) {
+    return {
+      redactAllFormInputs: false,
+      customSensitiveKeys: [],
+      captureScreenshots: config.captureScreenshots,
+      blurAllScreenshots: false,
+      redactEmails: false,
+      redactSecrets: false,
+    };
+  }
+
+  const customSensitiveKeys = config.customSensitiveKeys.filter((key) => {
+    const normalized = key.trim().toLowerCase();
+    if (!normalized) {
+      return false;
+    }
+    if (
+      !config.redactEmails &&
+      EMAIL_SENSITIVE_KEYS.some((candidate) => normalized.includes(candidate))
+    ) {
+      return false;
+    }
+    if (
+      !config.redactSecrets &&
+      SECRET_SENSITIVE_KEYS.some((candidate) => normalized.includes(candidate))
+    ) {
+      return false;
+    }
+    return true;
+  });
+
+  return {
+    redactAllFormInputs: config.redactAllFormInputs,
+    customSensitiveKeys,
+    captureScreenshots: config.captureScreenshots,
+    blurAllScreenshots: config.captureScreenshots && config.blurAllScreenshots,
+    redactEmails: config.redactEmails,
+    redactSecrets: config.redactSecrets,
+  };
 }
 
 export function buildScreenshotMaskExpression(
@@ -15,15 +82,14 @@ export function buildScreenshotMaskExpression(
 ): string {
   const payload = serializeForEvaluation({
     selectors,
-    redactAllFormInputs: config.redactAllFormInputs,
-    customSensitiveKeys: config.customSensitiveKeys,
-    captureScreenshots: config.captureScreenshots,
-    blurAllScreenshots: config.blurAllScreenshots,
+    ...buildSensitiveMaskConfig(config),
   });
+  const selectorResolver = buildSelectorResolver(selectors);
 
   return `
     (() => {
       const payload = ${payload};
+      ${selectorResolver}
       const cleanup = window.__accomplishScreenshotMaskCleanup;
       if (typeof cleanup === 'function') {
         cleanup();
@@ -37,20 +103,8 @@ export function buildScreenshotMaskExpression(
             .map((value) => value.toLowerCase())
         : [];
       const defaultSensitiveKeys = [
-        'email',
-        'e-mail',
-        'pass',
-        'password',
-        'otp',
-        'pin',
-        'token',
-        'secret',
-        'session',
-        'auth',
-        'api-key',
-        'apikey',
-        'verification',
-        'code',
+        ...(payload.redactEmails ? ${serializeForEvaluation(EMAIL_SENSITIVE_KEYS)} : []),
+        ...(payload.redactSecrets ? ${serializeForEvaluation(SECRET_SENSITIVE_KEYS)} : []),
       ];
       const sensitiveKeys = Array.from(new Set([...defaultSensitiveKeys, ...customSensitiveKeys]));
 
@@ -66,81 +120,7 @@ export function buildScreenshotMaskExpression(
         return String(value).replace(/\\s+/g, ' ').trim();
       };
 
-      const resolveSelector = (selector) => {
-        if (!selector || typeof selector.value !== 'string') {
-          return null;
-        }
-
-        try {
-          if (selector.type === 'css') {
-            return document.querySelector(selector.value);
-          }
-
-          if (selector.type === 'xpath') {
-            return document.evaluate(
-              selector.value,
-              document,
-              null,
-              XPathResult.FIRST_ORDERED_NODE_TYPE,
-              null,
-            ).singleNodeValue;
-          }
-
-          if (selector.type === 'test-id') {
-            return document.querySelector('[data-testid="' + CSS.escape(selector.value) + '"]');
-          }
-
-          if (selector.type === 'aria-label') {
-            return document.querySelector('[aria-label="' + CSS.escape(selector.value) + '"]');
-          }
-
-          if (selector.type === 'text') {
-            const targetText = normalizeText(selector.value);
-            const candidates = Array.from(document.querySelectorAll('body *'));
-            return (
-              candidates.find(
-                (candidate) =>
-                  normalizeText(candidate.textContent) === targetText && isVisible(candidate),
-              ) || null
-            );
-          }
-
-          if (selector.type === 'aria-role') {
-            const parsed = JSON.parse(selector.value);
-            const role = normalizeText(parsed?.role).toLowerCase();
-            const name = normalizeText(parsed?.name);
-            const candidates = Array.from(
-              document.querySelectorAll(role ? '[role="' + CSS.escape(role) + '"]' : 'body *'),
-            );
-            return (
-              candidates.find((candidate) => {
-                const candidateRole = normalizeText(candidate.getAttribute('role')).toLowerCase();
-                if (role && candidateRole !== role) {
-                  return false;
-                }
-                if (!name) {
-                  return isVisible(candidate);
-                }
-                const accessibleName = normalizeText(
-                  candidate.getAttribute('aria-label') ||
-                    candidate.getAttribute('placeholder') ||
-                    candidate.textContent,
-                );
-                return accessibleName === name && isVisible(candidate);
-              }) || null
-            );
-          }
-        } catch {
-          return null;
-        }
-
-        return null;
-      };
-
-      const targetElement =
-        selectorEntries
-          .map((selector) => resolveSelector(selector))
-          .find((candidate) => candidate instanceof Element) || null;
+      const targetElement = findElement();
 
       const createSnapshot = (element) => {
         if (!(element instanceof Element)) {

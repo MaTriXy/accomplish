@@ -40,6 +40,7 @@ export interface ManualRecordingSession {
   cdpSessionId: string;
   pollTimer: ReturnType<typeof setInterval>;
   lastPageUrl: string;
+  flushPromise: Promise<void> | null;
 }
 
 export interface ManualScreenshotMaskResult {

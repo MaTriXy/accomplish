@@ -8,6 +8,13 @@ export function buildSelectorResolver(selectors?: SelectorStrategy[]): string {
   const selectorsJson = serializeForEvaluation(selectors ?? []);
   return `
     const selectors = ${selectorsJson};
+    const isVisible = (element) => {
+      if (!(element instanceof Element)) {
+        return false;
+      }
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
     const readRolePayload = (value) => {
       if (!value) {
         return null;
@@ -99,7 +106,6 @@ export function buildSelectorResolver(selectors?: SelectorStrategy[]): string {
       const fallback = [
         element.getAttribute('title'),
         element.getAttribute('placeholder'),
-        'value' in element ? String(element.value || '').trim() : '',
         (element.textContent || '').trim(),
       ].find((value) => value && value.trim());
       return fallback ? fallback.trim() : '';
@@ -112,7 +118,9 @@ export function buildSelectorResolver(selectors?: SelectorStrategy[]): string {
       if (!normalizedNeedle) {
         return null;
       }
-      const candidates = Array.from(document.querySelectorAll('body *'));
+      const candidates = Array.from(document.querySelectorAll('body *')).filter((candidate) =>
+        isVisible(candidate),
+      );
       return candidates.find((candidate) => {
         const text = (candidate.textContent || '').trim();
         return text === normalizedNeedle || text.includes(normalizedNeedle);
@@ -128,7 +136,9 @@ export function buildSelectorResolver(selectors?: SelectorStrategy[]): string {
       if (!expectedRole) {
         return null;
       }
-      const candidates = Array.from(document.querySelectorAll('body *'));
+      const candidates = Array.from(document.querySelectorAll('body *')).filter((candidate) =>
+        isVisible(candidate),
+      );
       return (
         candidates.find((candidate) => {
           const role = inferRole(candidate);
@@ -136,7 +146,7 @@ export function buildSelectorResolver(selectors?: SelectorStrategy[]): string {
             return false;
           }
           if (!expectedName) {
-            return true;
+            return isVisible(candidate);
           }
           const name = getAccessibleName(candidate);
           return name === expectedName || name.includes(expectedName);

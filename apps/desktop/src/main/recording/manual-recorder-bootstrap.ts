@@ -9,12 +9,19 @@ export function buildManualRecorderBootstrap(): string {
       let lastViewportX = window.scrollX;
       let lastViewportY = window.scrollY;
       let scrollTimer = null;
+      let pendingDeltaX = 0;
+      let pendingDeltaY = 0;
 
-      const trimText = (value) => {
+      const normalizeText = (value) => {
         if (!value) {
           return '';
         }
         return String(value).replace(/\\s+/g, ' ').trim().slice(0, 120);
+      };
+
+      const getExactAttribute = (element, name) => {
+        const value = element.getAttribute(name);
+        return value == null ? '' : value;
       };
 
       const inferRole = (element) => {
@@ -81,7 +88,6 @@ export function buildManualRecorderBootstrap(): string {
         const fallback = [
           element.getAttribute('title'),
           element.getAttribute('placeholder'),
-          'value' in element ? String(element.value || '').trim() : '',
           (element.textContent || '').trim(),
         ].find((value) => value && value.trim());
         return fallback ? fallback.trim() : '';
@@ -89,27 +95,27 @@ export function buildManualRecorderBootstrap(): string {
 
       const buildSelectors = (element) => {
         const selectors = [];
-        const selector = trimText(element.getAttribute('data-accomplish-selector'));
+        const selector = getExactAttribute(element, 'data-accomplish-selector');
         if (selector) {
           selectors.push({ type: 'css', value: selector, confidence: 0.96 });
         }
 
-        const xpath = trimText(element.getAttribute('data-accomplish-xpath'));
+        const xpath = getExactAttribute(element, 'data-accomplish-xpath');
         if (xpath) {
           selectors.push({ type: 'xpath', value: xpath, confidence: 0.9 });
         }
 
-        const ref = trimText(element.getAttribute('data-ref'));
+        const ref = getExactAttribute(element, 'data-ref');
         if (ref) {
           selectors.push({ type: 'ref', value: ref, confidence: 0.92 });
         }
 
-        const testId = trimText(element.getAttribute('data-testid'));
+        const testId = getExactAttribute(element, 'data-testid');
         if (testId) {
           selectors.push({ type: 'test-id', value: testId, confidence: 0.93 });
         }
 
-        const ariaLabel = trimText(element.getAttribute('aria-label'));
+        const ariaLabel = normalizeText(element.getAttribute('aria-label'));
         if (ariaLabel) {
           selectors.push({ type: 'aria-label', value: ariaLabel, confidence: 0.9 });
         }
@@ -124,7 +130,7 @@ export function buildManualRecorderBootstrap(): string {
           });
         }
 
-        const text = trimText(element.textContent);
+        const text = normalizeText(element.textContent);
         if (text) {
           selectors.push({ type: 'text', value: text, confidence: 0.7 });
         }
@@ -176,7 +182,7 @@ export function buildManualRecorderBootstrap(): string {
             return;
           }
           if (target instanceof HTMLInputElement) {
-            const inputType = trimText(target.type).toLowerCase();
+            const inputType = normalizeText(target.type).toLowerCase();
             if (inputType === 'file') {
               const files = Array.from(target.files ?? []);
               push({
@@ -197,7 +203,9 @@ export function buildManualRecorderBootstrap(): string {
             push({
               kind: 'fill',
               selectors,
-              value: target.isContentEditable ? trimText(target.textContent) : String(target.value || ''),
+              value: target.isContentEditable
+                ? normalizeText(target.textContent)
+                : String(target.value || ''),
             });
           }
         },
@@ -229,22 +237,25 @@ export function buildManualRecorderBootstrap(): string {
       window.addEventListener(
         'scroll',
         () => {
-          const deltaX = window.scrollX - lastViewportX;
-          const deltaY = window.scrollY - lastViewportY;
+          pendingDeltaX += window.scrollX - lastViewportX;
+          pendingDeltaY += window.scrollY - lastViewportY;
           lastViewportX = window.scrollX;
           lastViewportY = window.scrollY;
           if (scrollTimer) {
             clearTimeout(scrollTimer);
           }
           scrollTimer = setTimeout(() => {
-            if (deltaX === 0 && deltaY === 0) {
+            if (pendingDeltaX === 0 && pendingDeltaY === 0) {
+              scrollTimer = null;
               return;
             }
             push({
               kind: 'scroll',
-              deltaX,
-              deltaY,
+              deltaX: pendingDeltaX,
+              deltaY: pendingDeltaY,
             });
+            pendingDeltaX = 0;
+            pendingDeltaY = 0;
             scrollTimer = null;
           }, 120);
         },
