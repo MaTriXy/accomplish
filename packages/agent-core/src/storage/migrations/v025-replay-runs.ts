@@ -3,6 +3,7 @@ import type { Database } from 'better-sqlite3';
 export const migration = {
   version: 25,
   up: (db: Database) => {
+    // Replay runs are stored separately so recording data and replay execution history can evolve independently.
     db.exec(`
       CREATE TABLE IF NOT EXISTS replay_runs (
         id TEXT PRIMARY KEY,

@@ -4,6 +4,7 @@ import { DEFAULT_PRIVACY_CONFIG } from '../../common/types/recording.js';
 export const migration = {
   version: 24,
   up: (db: Database) => {
+    // Recordings need dedicated tables before any captured steps or privacy defaults can be persisted.
     db.exec(`
       CREATE TABLE IF NOT EXISTS recordings (
         id TEXT PRIMARY KEY,
