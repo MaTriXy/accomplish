@@ -17,6 +17,9 @@ const mockAddTaskUpdate = vi.fn();
 const mockListTasks = vi.fn();
 const mockOnTaskStatusChange = vi.fn();
 const mockOnTaskUpdate = vi.fn();
+const mockOnDaemonDisconnected = vi.fn();
+const mockOnDaemonReconnected = vi.fn();
+const mockOnDaemonReconnectFailed = vi.fn();
 
 // Helper to create mock tasks
 function createMockTask(
@@ -38,6 +41,10 @@ const mockAccomplish = {
   listTasks: mockListTasks.mockResolvedValue([]),
   onTaskStatusChange: mockOnTaskStatusChange.mockReturnValue(() => {}),
   onTaskUpdate: mockOnTaskUpdate.mockReturnValue(() => {}),
+  daemonPing: vi.fn().mockResolvedValue({ status: 'ok' }),
+  onDaemonDisconnected: mockOnDaemonDisconnected.mockReturnValue(() => {}),
+  onDaemonReconnected: mockOnDaemonReconnected.mockReturnValue(() => {}),
+  onDaemonReconnectFailed: mockOnDaemonReconnectFailed.mockReturnValue(() => {}),
   getSelectedModel: vi.fn().mockResolvedValue({ provider: 'anthropic', id: 'claude-3-opus' }),
   getOllamaConfig: vi.fn().mockResolvedValue(null),
   isE2EMode: vi.fn().mockResolvedValue(false),
@@ -67,6 +74,12 @@ const mockAccomplish = {
   onThemeChange: undefined,
 };
 
+Object.defineProperty(window, 'accomplish', {
+  value: mockAccomplish,
+  configurable: true,
+  writable: true,
+});
+
 // Mock the accomplish module
 vi.mock('@/lib/accomplish', () => ({
   getAccomplish: () => mockAccomplish,
@@ -83,6 +96,29 @@ let mockStoreState = {
 // Mock the task store
 vi.mock('@/stores/taskStore', () => ({
   useTaskStore: () => mockStoreState,
+}));
+
+vi.mock('@/stores/daemonStore', () => ({
+  useDaemonStore: (
+    selector?: (state: {
+      status: string;
+      toastDismissed: boolean;
+      dismissToast: () => void;
+      setStatus: () => void;
+    }) => unknown,
+  ) => {
+    const state = {
+      status: 'connected',
+      toastDismissed: false,
+      dismissToast: vi.fn(),
+      setStatus: vi.fn(),
+    };
+    return selector ? selector(state) : state;
+  },
+}));
+
+vi.mock('@/components/DaemonStatusDot', () => ({
+  DaemonStatusDot: () => <span data-testid="daemon-status-dot" />,
 }));
 
 // Mock the SettingsDialog to simplify testing

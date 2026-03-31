@@ -29,6 +29,9 @@ const mockOnTaskStatusChange = vi.fn();
 const mockGetEnabledSkills = vi.fn();
 const mockGetConnectors = vi.fn();
 const mockResyncSkills = vi.fn();
+const mockOnDaemonDisconnected = vi.fn();
+const mockOnDaemonReconnected = vi.fn();
+const mockOnDaemonReconnectFailed = vi.fn();
 
 // Helper to create mock task
 function createMockTask(
@@ -71,6 +74,10 @@ const mockAccomplish = {
   onTodoUpdate: vi.fn().mockReturnValue(() => {}),
   onAuthError: vi.fn().mockReturnValue(() => {}),
   onWorkspaceChanged: vi.fn().mockReturnValue(() => {}),
+  daemonPing: vi.fn().mockResolvedValue({ status: 'ok' }),
+  onDaemonDisconnected: mockOnDaemonDisconnected.mockReturnValue(() => {}),
+  onDaemonReconnected: mockOnDaemonReconnected.mockReturnValue(() => {}),
+  onDaemonReconnectFailed: mockOnDaemonReconnectFailed.mockReturnValue(() => {}),
   onDebugLog: vi.fn().mockReturnValue(() => {}),
   onDebugModeChange: vi.fn().mockReturnValue(() => {}),
   getSelectedModel: vi.fn().mockResolvedValue({ provider: 'anthropic', id: 'claude-3-opus' }),
@@ -122,6 +129,12 @@ const mockAccomplish = {
   setTheme: vi.fn().mockResolvedValue(undefined),
   onThemeChange: undefined,
 };
+
+Object.defineProperty(window, 'accomplish', {
+  value: mockAccomplish,
+  configurable: true,
+  writable: true,
+});
 
 // Mock the accomplish module
 vi.mock('@/lib/accomplish', () => ({
@@ -179,6 +192,25 @@ vi.mock('@/stores/taskStore', () => {
   useTaskStoreFn.getState = () => mockStoreState;
   return { useTaskStore: useTaskStoreFn };
 });
+
+vi.mock('@/stores/daemonStore', () => ({
+  useDaemonStore: (
+    selector?: (state: {
+      status: string;
+      toastDismissed: boolean;
+      dismissToast: () => void;
+      setStatus: () => void;
+    }) => unknown,
+  ) => {
+    const state = {
+      status: 'connected',
+      toastDismissed: false,
+      dismissToast: vi.fn(),
+      setStatus: vi.fn(),
+    };
+    return selector ? selector(state) : state;
+  },
+}));
 
 // Mock framer-motion for simpler testing
 vi.mock('framer-motion', () => ({

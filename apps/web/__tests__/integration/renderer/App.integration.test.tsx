@@ -25,6 +25,9 @@ const mockListTasks = vi.fn();
 const mockOnTaskStatusChange = vi.fn();
 const mockOnTaskUpdate = vi.fn();
 const mockGetTask = vi.fn();
+const mockOnDaemonDisconnected = vi.fn();
+const mockOnDaemonReconnected = vi.fn();
+const mockOnDaemonReconnectFailed = vi.fn();
 
 // Mock accomplish API
 const mockAccomplish = {
@@ -34,6 +37,10 @@ const mockAccomplish = {
   onTaskStatusChange: mockOnTaskStatusChange.mockReturnValue(() => {}),
   onTaskUpdate: mockOnTaskUpdate.mockReturnValue(() => {}),
   getTask: mockGetTask.mockResolvedValue(null),
+  daemonPing: vi.fn().mockResolvedValue({ status: 'ok' }),
+  onDaemonDisconnected: mockOnDaemonDisconnected.mockReturnValue(() => {}),
+  onDaemonReconnected: mockOnDaemonReconnected.mockReturnValue(() => {}),
+  onDaemonReconnectFailed: mockOnDaemonReconnectFailed.mockReturnValue(() => {}),
   getSelectedModel: vi.fn().mockResolvedValue({ provider: 'anthropic', id: 'claude-3-opus' }),
   getOllamaConfig: vi.fn().mockResolvedValue(null),
   isE2EMode: vi.fn().mockResolvedValue(false),
@@ -58,6 +65,12 @@ const mockAccomplish = {
   validateBedrockCredentials: vi.fn().mockResolvedValue({ valid: true }),
   saveBedrockCredentials: vi.fn().mockResolvedValue(undefined),
 };
+
+Object.defineProperty(window, 'accomplish', {
+  value: mockAccomplish,
+  configurable: true,
+  writable: true,
+});
 
 // Mock the accomplish module - always return true for isRunningInElectron for most tests
 vi.mock('@/lib/accomplish', () => ({
@@ -176,6 +189,25 @@ let mockStoreState = {
 
 vi.mock('@/stores/taskStore', () => ({
   useTaskStore: () => mockStoreState,
+}));
+
+vi.mock('@/stores/daemonStore', () => ({
+  useDaemonStore: (
+    selector?: (state: {
+      status: string;
+      toastDismissed: boolean;
+      dismissToast: () => void;
+      setStatus: () => void;
+    }) => unknown,
+  ) => {
+    const state = {
+      status: 'connected',
+      toastDismissed: false,
+      dismissToast: vi.fn(),
+      setStatus: vi.fn(),
+    };
+    return selector ? selector(state) : state;
+  },
 }));
 
 // Mock the Sidebar component

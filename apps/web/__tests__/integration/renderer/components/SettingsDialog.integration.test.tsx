@@ -26,6 +26,10 @@ function translateSettingsKey(key: string, options?: Record<string, unknown>): s
   }, value);
 }
 
+const mockOnDaemonDisconnected = vi.fn();
+const mockOnDaemonReconnected = vi.fn();
+const mockOnDaemonReconnectFailed = vi.fn();
+
 const mockAccomplish = {
   onTaskProgress: vi.fn().mockReturnValue(() => {}),
   onTaskUpdate: vi.fn().mockReturnValue(() => {}),
@@ -33,6 +37,10 @@ const mockAccomplish = {
   onTodoUpdate: vi.fn().mockReturnValue(() => {}),
   onAuthError: vi.fn().mockReturnValue(() => {}),
   onWorkspaceChanged: vi.fn().mockReturnValue(() => {}),
+  daemonPing: vi.fn().mockResolvedValue({ status: 'ok' }),
+  onDaemonDisconnected: mockOnDaemonDisconnected.mockReturnValue(() => {}),
+  onDaemonReconnected: mockOnDaemonReconnected.mockReturnValue(() => {}),
+  onDaemonReconnectFailed: mockOnDaemonReconnectFailed.mockReturnValue(() => {}),
   getOllamaConfig: vi.fn().mockResolvedValue(null),
   isE2EMode: vi.fn().mockResolvedValue(false),
   getProviderSettings: vi.fn().mockResolvedValue({
@@ -126,6 +134,25 @@ vi.mock('@/stores/taskStore', () => {
   });
   return { useTaskStore };
 });
+
+vi.mock('@/stores/daemonStore', () => ({
+  useDaemonStore: (
+    selector?: (state: {
+      status: string;
+      toastDismissed: boolean;
+      dismissToast: () => void;
+      setStatus: () => void;
+    }) => unknown,
+  ) => {
+    const state = {
+      status: 'connected',
+      toastDismissed: false,
+      dismissToast: vi.fn(),
+      setStatus: vi.fn(),
+    };
+    return selector ? selector(state) : state;
+  },
+}));
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
