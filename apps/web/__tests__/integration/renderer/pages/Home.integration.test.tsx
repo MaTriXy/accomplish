@@ -19,6 +19,9 @@ const mockHasAnyApiKey = vi.fn();
 const mockOnTaskUpdate = vi.fn();
 const mockOnPermissionRequest = vi.fn();
 const mockLogEvent = vi.fn();
+const mockOnDaemonDisconnected = vi.fn();
+const mockOnDaemonReconnected = vi.fn();
+const mockOnDaemonReconnectFailed = vi.fn();
 
 // Helper to create a mock task
 function createMockTask(
@@ -43,6 +46,10 @@ const mockAccomplish = {
   getEnabledSkills: vi.fn().mockResolvedValue([]),
   onTaskUpdate: mockOnTaskUpdate.mockReturnValue(() => {}),
   onPermissionRequest: mockOnPermissionRequest.mockReturnValue(() => {}),
+  daemonPing: vi.fn().mockResolvedValue({ status: 'ok' }),
+  onDaemonDisconnected: mockOnDaemonDisconnected.mockReturnValue(() => {}),
+  onDaemonReconnected: mockOnDaemonReconnected.mockReturnValue(() => {}),
+  onDaemonReconnectFailed: mockOnDaemonReconnectFailed.mockReturnValue(() => {}),
   logEvent: mockLogEvent.mockResolvedValue(undefined),
   isE2EMode: vi.fn().mockResolvedValue(false),
   getProviderSettings: vi.fn().mockResolvedValue({
@@ -68,6 +75,12 @@ const mockAccomplish = {
   speechIsConfigured: vi.fn().mockResolvedValue(true),
 };
 
+Object.defineProperty(window, 'accomplish', {
+  value: mockAccomplish,
+  configurable: true,
+  writable: true,
+});
+
 // Mock the accomplish module
 vi.mock('@/lib/accomplish', () => ({
   getAccomplish: () => mockAccomplish,
@@ -89,6 +102,25 @@ let mockStoreState = {
 vi.mock('@/stores/taskStore', () => ({
   useTaskStore: (selector?: (state: typeof mockStoreState) => unknown) =>
     selector ? selector(mockStoreState) : mockStoreState,
+}));
+
+vi.mock('@/stores/daemonStore', () => ({
+  useDaemonStore: (
+    selector?: (state: {
+      status: string;
+      toastDismissed: boolean;
+      dismissToast: () => void;
+      setStatus: () => void;
+    }) => unknown,
+  ) => {
+    const state = {
+      status: 'connected',
+      toastDismissed: false,
+      dismissToast: vi.fn(),
+      setStatus: vi.fn(),
+    };
+    return selector ? selector(state) : state;
+  },
 }));
 
 // Mock framer-motion for simpler testing

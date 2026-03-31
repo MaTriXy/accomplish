@@ -54,6 +54,12 @@ function createDeferred<T>() {
   return { promise, resolve, reject };
 }
 
+const mockOnTaskProgress = vi.fn();
+const mockOnTaskUpdate = vi.fn();
+const mockOnDaemonDisconnected = vi.fn();
+const mockOnDaemonReconnected = vi.fn();
+const mockOnDaemonReconnectFailed = vi.fn();
+
 // Mock accomplish API
 const mockAccomplish = {
   startTask: vi.fn(),
@@ -89,16 +95,16 @@ const mockAccomplish = {
   validateApiKeyForProvider: vi.fn().mockResolvedValue({ valid: true }),
   validateBedrockCredentials: vi.fn().mockResolvedValue({ valid: true }),
   saveBedrockCredentials: vi.fn().mockResolvedValue(undefined),
+  daemonPing: vi.fn().mockResolvedValue({ status: 'ok' }),
+  onDaemonDisconnected: mockOnDaemonDisconnected.mockReturnValue(() => {}),
+  onDaemonReconnected: mockOnDaemonReconnected.mockReturnValue(() => {}),
+  onDaemonReconnectFailed: mockOnDaemonReconnectFailed.mockReturnValue(() => {}),
 };
 
 // Mock the accomplish module
 vi.mock('@/lib/accomplish', () => ({
   getAccomplish: () => mockAccomplish,
 }));
-
-// Mock window.accomplish for global subscriptions
-const mockOnTaskProgress = vi.fn();
-const mockOnTaskUpdate = vi.fn();
 
 function getTaskProgressHandler(): (progress: unknown) => void {
   const handler = mockOnTaskProgress.mock.calls.at(-1)?.[0];
@@ -114,6 +120,10 @@ vi.stubGlobal('window', {
     onTaskUpdate: mockOnTaskUpdate,
     onTodoUpdate: vi.fn(),
     onTaskSummary: vi.fn(),
+    onDaemonDisconnected: mockOnDaemonDisconnected,
+    onDaemonReconnected: mockOnDaemonReconnected,
+    onDaemonReconnectFailed: mockOnDaemonReconnectFailed,
+    daemonPing: vi.fn().mockResolvedValue({ status: 'ok' }),
   },
 });
 

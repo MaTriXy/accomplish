@@ -34,6 +34,10 @@ function createMockTask(
 // Mock accomplish API
 const mockAccomplish = {
   hasAnyApiKey: mockHasAnyApiKey,
+  daemonPing: vi.fn().mockResolvedValue({ status: 'ok' }),
+  onDaemonDisconnected: vi.fn().mockReturnValue(() => {}),
+  onDaemonReconnected: vi.fn().mockReturnValue(() => {}),
+  onDaemonReconnectFailed: vi.fn().mockReturnValue(() => {}),
   getSelectedModel: vi.fn().mockResolvedValue({ provider: 'anthropic', id: 'claude-3-opus' }),
   getOllamaConfig: vi.fn().mockResolvedValue(null),
   isE2EMode: vi.fn().mockResolvedValue(false),
