@@ -20,7 +20,7 @@ import {
   detectScenarioFromPrompt,
 } from '../../test-utils/mock-task-flow';
 import * as workspaceManager from '../../store/workspaceManager';
-import { handle, assertTrustedWindow } from './utils';
+import { handle, assertTrustedWindow, isE2EMockTasksEnabled } from './utils';
 import { getDaemonClient } from '../../daemon-bootstrap';
 import { sanitizeAttachments } from './attachment-utils';
 
@@ -208,6 +208,9 @@ export function registerTaskHandlers(): void {
   handle(
     'permission:respond',
     async (_event: IpcMainInvokeEvent, response: Record<string, unknown>) => {
+      if (isE2EMockTasksEnabled()) {
+        return;
+      }
       const client = getDaemonClient();
       // Type is now flat PermissionResponse (requestId, taskId, decision, ...)
       await client.call(

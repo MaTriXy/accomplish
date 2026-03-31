@@ -60,6 +60,7 @@ export function MessageCopyButton({ content, isUser }: MessageCopyButtonProps) {
           size="icon-sm"
           onClick={handleCopy}
           data-testid="message-copy-button"
+          data-copied={copied ? 'true' : 'false'}
           className={cn(
             'absolute bottom-2 right-2',
             'opacity-0 transition-all duration-200',
