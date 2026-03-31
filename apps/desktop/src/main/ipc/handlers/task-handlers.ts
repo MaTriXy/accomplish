@@ -208,6 +208,7 @@ export function registerTaskHandlers(): void {
   handle(
     'permission:respond',
     async (_event: IpcMainInvokeEvent, response: Record<string, unknown>) => {
+<<<<<<< HEAD
       // In E2E mock mode, daemon isn't running — silently succeed
       if (isMockTaskEventsEnabled()) {
         return;

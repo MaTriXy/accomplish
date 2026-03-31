@@ -1805,6 +1805,26 @@ describe('IPC Handlers Integration', () => {
         process.env.E2E_MOCK_TASK_EVENTS = originalEnv;
       }
     });
+
+    it('permission:respond should short-circuit in E2E mock task mode', async () => {
+      const originalEnv = process.env.E2E_MOCK_TASK_EVENTS;
+      process.env.E2E_MOCK_TASK_EVENTS = '1';
+
+      try {
+        await invokeHandler('permission:respond', {
+          requestId: 'req_mock',
+          taskId: 'task_mock',
+          decision: 'allow',
+        });
+
+        expect(mockDaemonClient.call).not.toHaveBeenCalledWith(
+          'permission.respond',
+          expect.anything(),
+        );
+      } finally {
+        process.env.E2E_MOCK_TASK_EVENTS = originalEnv;
+      }
+    });
   });
 
   describe('API Key Validation Timeout', () => {

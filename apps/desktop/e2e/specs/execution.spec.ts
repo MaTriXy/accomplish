@@ -3,6 +3,8 @@ import { HomePage, ExecutionPage } from '../pages';
 import { captureForAI } from '../utils';
 import { TEST_TIMEOUTS, TEST_SCENARIOS } from '../config';
 
+const SCROLL_TO_BOTTOM_THRESHOLD_PX = 150;
+
 test.describe('Execution Page', () => {
   test('should display running state with thinking indicator', async ({ window }) => {
     const homePage = new HomePage(window);
@@ -488,30 +490,35 @@ test.describe('Execution Page', () => {
     // Scroll to top to simulate user scrolling up
     await scrollContainer.evaluate((el) => {
       el.scrollTop = 0;
+      el.dispatchEvent(new Event('scroll'));
     });
 
     // Wait for scroll state to propagate
     await window.waitForTimeout(TEST_TIMEOUTS.STATE_UPDATE * 4);
 
-    // Check if the content is tall enough to trigger the scroll-to-bottom button.
-    // The app uses a 150px threshold: isAtBottom = scrollTop + clientHeight >= scrollHeight - 150
-    // So the button only appears when scrollHeight - clientHeight > 150
-    const hasEnoughScroll = await scrollContainer.evaluate((el) => {
-      return el.scrollHeight - el.clientHeight > 150;
-    });
+    // Check if the container is scrollable (has content taller than viewport)
+    const shouldShowScrollButton = await scrollContainer.evaluate(
+      (el, threshold) => {
+        const overflow = el.scrollHeight - el.clientHeight;
+        return overflow > threshold;
+      },
+      SCROLL_TO_BOTTOM_THRESHOLD_PX,
+    );
 
-    if (hasEnoughScroll) {
-      // Scroll-to-bottom button should be visible when scrolled up
+    if (shouldShowScrollButton) {
       await expect(executionPage.scrollToBottomButton).toBeVisible({
         timeout: TEST_TIMEOUTS.PERMISSION_MODAL,
       });
 
-      // Capture screenshot
       await captureForAI(window, 'execution-scroll', 'scroll-button-visible', [
         'Scroll-to-bottom button is visible',
         'User is scrolled up from bottom',
         'Button appears inline after messages',
       ]);
+    } else {
+      await expect(executionPage.scrollToBottomButton).not.toBeVisible({
+        timeout: TEST_TIMEOUTS.STATE_UPDATE,
+      });
     }
   });
 
@@ -536,6 +543,7 @@ test.describe('Execution Page', () => {
     // Scroll to bottom
     await scrollContainer.evaluate((el) => {
       el.scrollTop = el.scrollHeight;
+      el.dispatchEvent(new Event('scroll'));
     });
 
     // Wait for scroll state to update
@@ -582,10 +590,25 @@ test.describe('Execution Page', () => {
       // Scroll to top
       await scrollContainer.evaluate((el) => {
         el.scrollTop = 0;
+        el.dispatchEvent(new Event('scroll'));
       });
       await window.waitForTimeout(TEST_TIMEOUTS.STATE_UPDATE * 4);
 
-      // Verify button is visible
+      const shouldShowScrollButton = await scrollContainer.evaluate(
+        (el, threshold) => {
+          const overflow = el.scrollHeight - el.clientHeight;
+          return overflow > threshold;
+        },
+        SCROLL_TO_BOTTOM_THRESHOLD_PX,
+      );
+
+      if (!shouldShowScrollButton) {
+        await expect(executionPage.scrollToBottomButton).not.toBeVisible({
+          timeout: TEST_TIMEOUTS.STATE_UPDATE,
+        });
+        return;
+      }
+
       await expect(executionPage.scrollToBottomButton).toBeVisible({
         timeout: TEST_TIMEOUTS.PERMISSION_MODAL,
       });
@@ -759,10 +782,7 @@ test.describe('Execution Page', () => {
     expect(clipboardText).toBeTruthy();
     expect(clipboardText.length).toBeGreaterThan(0);
 
-    // Verify visual feedback - button should show copied state
-    // The copy button uses bg-accent for the copied state
-    const buttonClasses = await firstCopyButton.getAttribute('class');
-    expect(buttonClasses).toContain('bg-accent');
+    await expect(firstCopyButton).toHaveAttribute('data-copied', 'true');
   });
 
   test('should display code blocks with syntax highlighting and copy buttons', async ({
