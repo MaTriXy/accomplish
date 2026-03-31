@@ -27,6 +27,14 @@ export function isE2ESkipAuthEnabled(): boolean {
   );
 }
 
+export function isE2EMockTasksEnabled(): boolean {
+  return (
+    (global as Record<string, unknown>).E2E_MOCK_TASK_EVENTS === true ||
+    process.argv.includes('--e2e-mock-tasks') ||
+    process.env.E2E_MOCK_TASK_EVENTS === '1'
+  );
+}
+
 export function handle<Args extends unknown[], ReturnType = unknown>(
   channel: string,
   handler: (event: IpcMainInvokeEvent, ...args: Args) => ReturnType,

@@ -2,7 +2,7 @@
 import { app, BrowserWindow, nativeTheme } from 'electron';
 import type { IpcMainInvokeEvent } from 'electron';
 import { getStorage } from '../../store/storage';
-import { handle } from './utils';
+import { handle, isE2EMockTasksEnabled } from './utils';
 import { registerCloudBrowserHandlers } from './settings-handlers/cloud-browser-handlers';
 import { registerSandboxHandlers } from './settings-handlers/sandbox-handlers';
 import { registerAuthHandlers } from './settings-handlers/auth-handlers';
@@ -74,6 +74,10 @@ export function registerSettingsHandlers(): void {
   // ── Daemon Control ──────────────────────────────────────────────────
 
   handle('daemon:ping', async () => {
+    if (isE2EMockTasksEnabled()) {
+      return { status: 'ok', uptime: 0 };
+    }
+
     const { getDaemonClient } = await import('../../daemon-bootstrap');
     try {
       const client = getDaemonClient();
