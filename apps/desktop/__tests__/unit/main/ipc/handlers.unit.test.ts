@@ -1788,6 +1788,23 @@ describe('IPC Handlers Integration', () => {
       // Cleanup
       process.env.E2E_SKIP_AUTH = originalEnv;
     });
+
+    it('daemon:ping should return ok in E2E mock task mode', async () => {
+      const originalEnv = process.env.E2E_MOCK_TASK_EVENTS;
+      process.env.E2E_MOCK_TASK_EVENTS = '1';
+
+      try {
+        const result = (await invokeHandler('daemon:ping')) as {
+          status: string;
+          uptime: number;
+        };
+
+        expect(result).toEqual({ status: 'ok', uptime: 0 });
+        expect(mockDaemonClient.ping).not.toHaveBeenCalled();
+      } finally {
+        process.env.E2E_MOCK_TASK_EVENTS = originalEnv;
+      }
+    });
   });
 
   describe('API Key Validation Timeout', () => {
