@@ -10,12 +10,15 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import Header from '@/components/layout/Header';
 
+const mockAccomplish = {
+  getTheme: vi.fn().mockResolvedValue('system'),
+  setTheme: vi.fn().mockResolvedValue(undefined),
+  onThemeChange: undefined,
+};
+
 vi.mock('@/lib/accomplish', () => ({
-  getAccomplish: () => ({
-    getTheme: vi.fn().mockResolvedValue('system'),
-    setTheme: vi.fn().mockResolvedValue(undefined),
-    onThemeChange: undefined,
-  }),
+  getAccomplish: () => mockAccomplish,
+  useAccomplish: () => mockAccomplish,
 }));
 
 describe('Header Integration', () => {

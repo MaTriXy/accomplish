@@ -33,9 +33,9 @@ import { migration as v022 } from './v022-remove-run-in-background.js';
 import { migration as v023 } from './v023-scheduled-tasks.js';
 import { migration as v024 } from './v024-huggingface-local-config.js';
 import { migration as v025 } from './v024-accomplish-ai.js';
-import { migration as v026 } from './v024-recordings.js';
-import { migration as v027 } from './v025-replay-runs.js';
-import { migration as v028 } from './v026-recording-payload-files.js';
+import { migration as v026 } from './v026-recordings.js';
+import { migration as v027 } from './v027-replay-runs.js';
+import { migration as v028 } from './v028-recording-payload-files.js';
 
 const migrations: Migration[] = [
   v001,

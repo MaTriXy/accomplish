@@ -109,6 +109,7 @@ const mockAccomplish = {
     allowedHosts: [],
   }),
   listWorkspaces: vi.fn().mockResolvedValue([]),
+  getBuildCapabilities: vi.fn().mockResolvedValue({ hasFreeMode: true }),
   getTheme: vi.fn().mockResolvedValue('system'),
   setTheme: vi.fn().mockResolvedValue(undefined),
   onThemeChange: undefined,
@@ -123,6 +124,7 @@ Object.defineProperty(window, 'accomplish', {
 // Mock the accomplish module
 vi.mock('@/lib/accomplish', () => ({
   getAccomplish: () => mockAccomplish,
+  useAccomplish: () => mockAccomplish,
 }));
 
 vi.mock('@/stores/taskStore', () => {
@@ -205,11 +207,21 @@ vi.mock('@radix-ui/react-dialog', () => ({
   Overlay: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="dialog-overlay">{children}</div>
   ),
-  Content: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) => (
-    <div data-testid="dialog-content" role="dialog" {...props}>
-      {children}
-    </div>
-  ),
+  Content: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) => {
+    const {
+      onOpenAutoFocus: _onOpenAutoFocus,
+      onCloseAutoFocus: _onCloseAutoFocus,
+      onEscapeKeyDown: _onEscapeKeyDown,
+      onPointerDownOutside: _onPointerDownOutside,
+      onInteractOutside: _onInteractOutside,
+      ...domProps
+    } = props;
+    return (
+      <div data-testid="dialog-content" role="dialog" {...domProps}>
+        {children}
+      </div>
+    );
+  },
   Title: ({ children, className }: { children: React.ReactNode; className?: string }) => (
     <h2 className={className}>{children}</h2>
   ),

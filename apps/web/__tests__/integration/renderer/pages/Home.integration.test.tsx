@@ -84,6 +84,7 @@ Object.defineProperty(window, 'accomplish', {
 // Mock the accomplish module
 vi.mock('@/lib/accomplish', () => ({
   getAccomplish: () => mockAccomplish,
+  useAccomplish: () => mockAccomplish,
 }));
 
 // Mock store state holder
@@ -510,7 +511,7 @@ describe('Home Page Integration', () => {
       expect(textarea).toBeDisabled();
     });
 
-    it('should keep stop button enabled when loading', () => {
+    it('should disable stop button when loading', async () => {
       // Arrange
       mockStoreState.isLoading = true;
 
@@ -522,11 +523,11 @@ describe('Home Page Integration', () => {
       );
 
       // Assert
-      const submitButton = screen.getByTitle('Stop');
-      expect(submitButton).not.toBeDisabled();
+      const submitButton = await screen.findByTestId('task-input-submit');
+      expect(submitButton).toBeDisabled();
     });
 
-    it('should interrupt instead of submitting when already loading', async () => {
+    it('should ignore submit clicks when already loading', async () => {
       // Arrange
       mockStoreState.isLoading = true;
 
@@ -543,7 +544,7 @@ describe('Home Page Integration', () => {
       // Assert
       await waitFor(() => {
         expect(mockStartTask).not.toHaveBeenCalled();
-        expect(mockInterruptTask).toHaveBeenCalledTimes(1);
+        expect(mockInterruptTask).not.toHaveBeenCalled();
       });
     });
   });

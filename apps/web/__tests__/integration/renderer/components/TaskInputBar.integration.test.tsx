@@ -62,6 +62,7 @@ const mockAccomplish = {
 // Mock the accomplish module
 vi.mock('@/lib/accomplish', () => ({
   getAccomplish: () => mockAccomplish,
+  useAccomplish: () => mockAccomplish,
 }));
 
 vi.mock('@/stores/taskStore', () => {
@@ -317,7 +318,7 @@ describe('TaskInputBar Integration', () => {
       expect(textarea).toBeDisabled();
     });
 
-    it('should keep stop button enabled when loading', () => {
+    it('should disable stop button when loading', async () => {
       const onChange = vi.fn();
       const onSubmit = vi.fn();
 
@@ -331,8 +332,8 @@ describe('TaskInputBar Integration', () => {
       );
 
       // Assert
-      const submitButton = screen.getByRole('button', { name: /stop/i });
-      expect(submitButton).not.toBeDisabled();
+      const submitButton = await screen.findByRole('button', { name: /stop/i });
+      expect(submitButton).toBeDisabled();
     });
 
     it('should show stop indicator in submit button when loading', () => {

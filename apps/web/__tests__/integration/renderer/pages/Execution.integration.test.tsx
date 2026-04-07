@@ -139,6 +139,7 @@ Object.defineProperty(window, 'accomplish', {
 // Mock the accomplish module
 vi.mock('@/lib/accomplish', () => ({
   getAccomplish: () => mockAccomplish,
+  useAccomplish: () => mockAccomplish,
 }));
 
 // Mock store state holder

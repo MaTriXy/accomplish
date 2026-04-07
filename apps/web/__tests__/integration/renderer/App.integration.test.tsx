@@ -75,6 +75,7 @@ Object.defineProperty(window, 'accomplish', {
 // Mock the accomplish module - always return true for isRunningInElectron for most tests
 vi.mock('@/lib/accomplish', () => ({
   getAccomplish: () => mockAccomplish,
+  useAccomplish: () => mockAccomplish,
   isRunningInElectron: () => true,
 }));
 
