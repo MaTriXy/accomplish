@@ -206,6 +206,12 @@ importers:
       opencode-linux-x64-musl:
         specifier: 1.3.16
         version: 1.3.16
+      opencode-windows-x64:
+        specifier: 1.3.16
+        version: 1.3.16
+      opencode-windows-x64-baseline:
+        specifier: 1.3.16
+        version: 1.3.16
     devDependencies:
       '@electron/rebuild':
         specifier: ^4.0.2

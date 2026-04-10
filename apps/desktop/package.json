@@ -98,7 +98,9 @@
     "opencode-linux-x64": "1.3.16",
     "opencode-linux-x64-baseline": "1.3.16",
     "opencode-linux-x64-baseline-musl": "1.3.16",
-    "opencode-linux-x64-musl": "1.3.16"
+    "opencode-linux-x64-musl": "1.3.16",
+    "opencode-windows-x64": "1.3.16",
+    "opencode-windows-x64-baseline": "1.3.16"
   },
   "build": {
     "npmRebuild": false,
