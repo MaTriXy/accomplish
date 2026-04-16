@@ -1,8 +1,13 @@
 /**
- * Web i18n Configuration (Self-Contained)
+ * Web i18n Configuration (Platform-Agnostic, Optional Electron IPC)
  *
  * All translations are bundled as static imports. Language preference is
- * persisted in localStorage. No IPC or main-process dependency.
+ * persisted in localStorage. This module remains platform-agnostic, but when running
+ * in an Electron renderer, it will call window.accomplish.setLanguage() (IPC to main process)
+ * if present, to sync the language preference with the main process. This integration is
+ * fully optional: calls are guarded by (typeof window !== 'undefined' && window.accomplish?.setLanguage)
+ * and are fire-and-forget with error logging. See the symbols window.accomplish.setLanguage and
+ * getLanguagePreference in this module for the conditional Electron integration logic.
  */
 
 import i18n from 'i18next';
@@ -173,7 +178,7 @@ export async function initI18n(): Promise<void> {
           lookupLocalStorage: LANGUAGE_STORAGE_KEY,
         },
 
-        debug: process.env.NODE_ENV === 'development',
+        debug: import.meta.env.DEV,
 
         returnEmptyString: false,
 
@@ -185,13 +190,20 @@ export async function initI18n(): Promise<void> {
     updateDocumentDirection(initialLanguage);
     isInitialized = true;
     logger.info(`Initialized with language: ${initialLanguage}`);
+    // Sync initial language to main process so the agent reflects the stored preference
+    if (typeof window !== 'undefined' && window.accomplish?.setLanguage) {
+      const storedPref = getLanguagePreference();
+      window.accomplish.setLanguage(storedPref).catch((error) => {
+        logger.warn('Failed to sync initial language preference to main process', { error });
+      });
+    }
   })();
 
   return initializationPromise;
 }
 
 /**
- * Change language and persist to localStorage
+ * Change language and persist to localStorage and main-process DB (Electron only)
  */
 export async function changeLanguage(
   language: 'en' | 'zh-CN' | 'ru' | 'fr' | 'auto',
@@ -200,6 +212,12 @@ export async function changeLanguage(
   localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
   await i18n.changeLanguage(resolvedLanguage);
   updateDocumentDirection(resolvedLanguage);
+  // Persist to main process so the agent reads the correct language
+  if (typeof window !== 'undefined' && window.accomplish?.setLanguage) {
+    window.accomplish.setLanguage(language).catch((error) => {
+      logger.warn('Failed to sync language preference to main process', { error });
+    });
+  }
 }
 
 /**

@@ -57,6 +57,7 @@ export interface StoredFavorite {
   favoritedAt: string;
 }
 export type ThemePreference = 'system' | 'light' | 'dark';
+export type LanguagePreference = 'auto' | 'en' | 'zh-CN' | 'ru' | 'fr';
 
 /** Application settings snapshot */
 export interface AppSettings {
@@ -70,6 +71,7 @@ export interface AppSettings {
   huggingfaceLocalConfig: HuggingFaceLocalConfig | null;
   openaiBaseUrl: string;
   theme: ThemePreference;
+  language: LanguagePreference;
 }
 
 // ---------------------------------------------------------------------------
@@ -79,7 +81,7 @@ export interface AppSettings {
 /** API for task CRUD operations and todo management */
 export interface TaskStorageAPI {
   /** Get all stored tasks, optionally filtered by workspace */
-  getTasks(workspaceId?: string | null): StoredTask[];
+  getTasks(workspaceId?: string | null, includeUnassigned?: boolean): StoredTask[];
   /** Get a task by ID, returns undefined if not found */
   getTask(taskId: string): StoredTask | undefined;
   /** Persist a new task or update an existing one */
@@ -174,6 +176,10 @@ export interface AppSettingsAPI {
   getCloseBehavior(): 'keep-daemon' | 'stop-daemon';
   /** Set the window close button behavior */
   setCloseBehavior(behavior: 'keep-daemon' | 'stop-daemon'): void;
+  /** Get the user's UI language preference */
+  getLanguage(): LanguagePreference;
+  /** Set the user's UI language preference */
+  setLanguage(language: LanguagePreference): void;
   /** Get all application settings as a snapshot */
   getAppSettings(): AppSettings;
   /** Reset all application settings to defaults */

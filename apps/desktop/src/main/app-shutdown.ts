@@ -4,9 +4,11 @@
  */
 
 import { app } from 'electron';
-import { cleanupVertexServiceAccountKey } from './opencode';
+import { cleanupVertexServiceAccountKey, stopDevBrowserServer } from './opencode';
 import { stopAllBrowserPreviewStreams } from './services/browserPreview';
-import { oauthBrowserFlow } from './opencode/auth-browser';
+// Phase 4a of the SDK cutover port deleted the desktop-side PTY OAuth flow —
+// the OpenAI OAuth orchestration lives in the daemon now and its lifecycle is
+// tied to the daemon process itself. Slack MCP OAuth remains desktop-side.
 import { slackMcpOAuthFlow } from './opencode/slack-auth';
 import { closeStorage } from './store/storage';
 import * as workspaceManager from './store/workspaceManager';
@@ -16,6 +18,7 @@ import { destroyTray } from './tray';
 import { shutdownDaemon } from './daemon-bootstrap';
 import { flushAnalytics } from './analytics/analytics-service';
 import { flushMixpanel } from './analytics/mixpanel-service';
+import { trackAppClose } from './analytics/events';
 
 type AppLogger = ReturnType<typeof getLogCollector> | null;
 
@@ -31,6 +34,12 @@ async function raceTimeout<T>(promise: Promise<T>, ms: number, label: string): P
 export async function shutdownApp(logger: AppLogger): Promise<void> {
   destroyTray();
   shutdownDaemon();
+
+  try {
+    await raceTimeout(stopDevBrowserServer(), 5000, 'Dev-browser shutdown');
+  } catch (error: unknown) {
+    logger?.logEnv('ERROR', `[Main] Failed to stop dev-browser server: ${String(error)}`);
+  }
 
   try {
     await raceTimeout(stopAllBrowserPreviewStreams(), 5000, 'Stopping browser preview streams');
@@ -50,12 +59,8 @@ export async function shutdownApp(logger: AppLogger): Promise<void> {
     logger?.logEnv('ERROR', `[Main] Error during cleanupVertexServiceAccountKey: ${String(error)}`);
   }
 
-  try {
-    oauthBrowserFlow.dispose();
-  } catch (error: unknown) {
-    logger?.logEnv('ERROR', `[Main] Error during oauthBrowserFlow.dispose: ${String(error)}`);
-  }
-
+  // oauthBrowserFlow disposal removed in Phase 4a — daemon-side OAuth manager
+  // tears itself down when the daemon stops.
   try {
     slackMcpOAuthFlow.dispose();
   } catch (error: unknown) {
@@ -68,8 +73,9 @@ export async function shutdownApp(logger: AppLogger): Promise<void> {
     logger?.logEnv('ERROR', `[Main] Error during workspaceManager.close: ${String(error)}`);
   }
 
-  // Flush analytics before closing storage — best effort
+  // Track app close + flush analytics before closing storage — best effort
   try {
+    await trackAppClose();
     flushAnalytics();
     flushMixpanel();
   } catch (error: unknown) {

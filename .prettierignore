@@ -9,3 +9,6 @@ playwright-report/
 coverage/
 # Auto-generated files not tracked by git
 **/public/theme-init.js
+# Build artifacts
+**/mcp-tools/dev-browser/server.mjs
+**/mcp-tools/dev-browser/.browser-data/

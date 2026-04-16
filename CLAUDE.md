@@ -95,7 +95,7 @@ Never skip a step — all 4 must be done together.
 
 ### Bundled Node.js
 
-The packaged app ships Node.js v20.18.1. When spawning `npx`/`node` in the main process,
+The packaged app ships Node.js v22.22.2. When spawning `npx`/`node` in the main process,
 prepend `bundledPaths.binDir` to `PATH` — otherwise processes fail with exit code 127 on
 machines without system Node.js. See [docs/architecture.md](docs/architecture.md#spawning-npxnode-in-main-process).
 
@@ -164,3 +164,11 @@ Do not push if any step fails.
 
 Tailwind CSS + shadcn/ui, CSS variables for theming (no hardcoded colors), DM Sans font,
 Framer Motion for animations via `apps/web/src/client/lib/animations.ts`.
+
+## Active Technologies
+
+TypeScript 5.7 (strict mode), ESM in agent-core/daemon, React 18 + Zustand (web UI), Baileys v7 (WhatsApp socket + in-memory store), @modelcontextprotocol/sdk (MCP server/client), shadcn/ui + Tailwind CSS (settings UI). No new database tables or migrations — Baileys in-memory store is runtime-only (lost on daemon restart); existing SQLite `app_settings` and WhatsApp session files are unchanged.
+
+## Recent Changes
+
+- 004-whatsapp-read / 003-unify-whatsapp-integration: Added WhatsApp send/read MCP tools, unified Integrations settings tab, Baileys in-memory store for chat/message reading

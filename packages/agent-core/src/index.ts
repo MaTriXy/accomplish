@@ -16,7 +16,6 @@ export {
   createTaskManager,
   createStorage,
   createPermissionHandler,
-  createThoughtStreamHandler,
   createLogWriter,
   createSkillsManager,
   createSpeechService,
@@ -57,13 +56,6 @@ export type {
   QuestionRequestData as PermissionQuestionRequestData,
   QuestionResponseData as PermissionQuestionResponseData,
   PermissionValidationResult,
-  // Thought Stream API
-  ThoughtStreamAPI,
-  ThoughtStreamOptions,
-  ThoughtEvent as ThoughtStreamEvent,
-  CheckpointEvent as ThoughtStreamCheckpointEvent,
-  ThoughtCategory,
-  CheckpointStatus,
   // Log Writer API
   LogWriterAPI,
   LogWriterOptions,
@@ -134,8 +126,8 @@ export { OpenCodeCliNotFoundError } from './internal/classes/OpenCodeAdapter.js'
 // Low-level OpenCode utilities for advanced integrations
 export { resolveCliPath, isCliAvailable } from './opencode/cli-resolver.js';
 export { generateConfig, ACCOMPLISH_AGENT_NAME } from './opencode/config-generator.js';
-export { buildCliArgs } from './opencode/cli-args.js';
-export type { BuildCliArgsOptions } from './opencode/cli-args.js';
+// Phase 4b of the OpenCode SDK cutover port deleted `./opencode/cli-args.js`
+// (the SDK adapter uses `session.prompt`, not CLI args).
 
 export type { BrowserConfig } from './opencode/generator-mcp.js';
 
@@ -144,18 +136,49 @@ export type { EnvironmentConfig } from './opencode/environment.js';
 
 export { buildProviderConfigs, syncApiKeysToOpenCodeAuth } from './opencode/config-builder.js';
 
+// `resolveTaskConfig` was retained at merge time (rather than fully deleted in
+// Phase 4b of the SDK cutover port) because the desktop config-generator —
+// which on `main` was extended with GWS manifest preparation in #921 — still
+// imports it. The function is dead at runtime under SDK architecture (the
+// daemon owns config generation via `apps/daemon/src/task-config-builder.ts`)
+// but kept for type compatibility until the desktop config-generator is
+// either rewritten for the SDK era or deleted as part of GWS daemon-side wiring.
 export { resolveTaskConfig } from './opencode/resolve-task-config.js';
 export type {
   ResolveTaskConfigOptions,
   ResolvedTaskConfig,
 } from './opencode/resolve-task-config.js';
 
+// SDK-era model-runtime mapping (port of commercial 1a320029). Normalises OSS
+// `SelectedModel` into the `{ providerID, modelID }` shape the OpenCode SDK v2
+// session.prompt API expects. Populated in Phase 2 when the daemon constructs
+// the adapter's `AdapterOptions.getServerUrl` + selected-model plumbing.
+export {
+  normalizeSelectedModelForSdk,
+  resolveLlamaCppRuntimeModelName,
+} from './opencode/model-runtime-mapping.js';
+export type { SdkSelectedModelRef } from './opencode/model-runtime-mapping.js';
+
 export {
   getOpenCodeAuthPath,
   getOpenCodeAuthJsonPath,
   getOpenCodeMcpAuthJsonPath,
+  // Re-exported so the daemon's OAuth manager
+  // (`apps/daemon/src/opencode/auth-openai.ts`) can consume them through
+  // agent-core's public surface. Desktop MUST NOT import these directly —
+  // Phase 4a of the SDK cutover port routes desktop's status / access-token
+  // reads through the daemon's `auth.openai.*` RPCs so desktop and daemon
+  // agree on auth.json path (XDG drift would otherwise produce silent
+  // fallbacks to the hardcoded OpenAI model list).
+  //
+  // The verification grep in the plan enforces this:
+  //   grep -rnE "import.*getOpenAiOauth(Status|AccessToken)" apps packages \
+  //     | grep -vE "packages/agent-core/src/opencode/|apps/daemon/src/opencode/auth-openai\.ts"
+  //   # expected: zero hits
   getOpenAiOauthStatus,
   getOpenAiOauthAccessToken,
+  readOpenAiOauthPlan,
+  detectOpenAiOauthPlan,
   getSlackMcpOauthStatus,
   getSlackMcpCallbackUrl,
   setSlackMcpPendingAuth,
@@ -167,7 +190,12 @@ export {
   OPENCODE_SLACK_MCP_CALLBACK_PORT,
   OPENCODE_SLACK_MCP_CALLBACK_PATH,
 } from './opencode/auth.js';
-export type { OpenCodeMcpOauthStatus } from './opencode/auth.js';
+export type { OpenCodeMcpOauthStatus, DetectOpenAiOauthPlanOptions } from './opencode/auth.js';
+export type { OpenAiOauthPlan } from './common/types/providerSettings.js';
+export {
+  OPENAI_OAUTH_MODEL_IDS,
+  OPENAI_OAUTH_FREE_MODEL_IDS,
+} from './common/types/providerSettings.js';
 
 export { sanitizeAssistantTextForDisplay } from './opencode/message-processor.js';
 // Message processing is now internal to TaskManager (use onBatchedMessages callback)
@@ -315,7 +343,7 @@ export { mapResultToStatus } from './utils/task-status.js';
 // -----------------------------------------------------------------------------
 
 // Browser server for dev-browser MCP tool
-export { ensureDevBrowserServer } from './browser/server.js';
+export { ensureDevBrowserServer, shutdownDevBrowserServer } from './browser/server.js';
 export type { BrowserServerConfig } from './browser/server.js';
 
 // -----------------------------------------------------------------------------
@@ -341,6 +369,7 @@ export type { GetApiKeyFn } from './services/summarizer.js';
 export type {
   TaskStatus,
   TaskConfig,
+  TaskSource,
   Task,
   TaskAttachment,
   TaskMessage,
@@ -494,7 +523,6 @@ export {
 // Other types
 export type { TodoItem } from './common/types/todo.js';
 export type { LogLevel, LogSource, LogEntry } from './common/types/logging.js';
-export type { ThoughtEvent, CheckpointEvent } from './common/types/thought-stream.js';
 
 // Sandbox types
 export type {
@@ -515,9 +543,9 @@ export { DockerSandboxProvider } from './sandbox/docker-provider.js';
 export {
   DEV_BROWSER_PORT,
   DEV_BROWSER_CDP_PORT,
-  THOUGHT_STREAM_PORT,
   PERMISSION_API_PORT,
   QUESTION_API_PORT,
+  WHATSAPP_API_PORT,
   PERMISSION_REQUEST_TIMEOUT_MS,
   CONNECTOR_AUTH_REQUIRED_MARKER,
   LOG_MAX_FILE_SIZE_BYTES,
@@ -547,11 +575,13 @@ export { stripAnsi, quoteForShell, getPlatformShell, getShellArgs } from './util
 export { isPortInUse, waitForPortRelease } from './utils/network.js';
 export { isWaitingForUser } from './common/utils/waiting-detection.js';
 export { detectLogSource, LOG_SOURCE_PATTERNS } from './common/utils/log-source-detector.js';
+export { mergeTaskMessage, upsertTaskMessages } from './common/utils/task-message-merge.js';
 // Schemas
 export {
   taskConfigSchema,
   permissionResponseSchema,
   resumeSessionSchema,
+  authOpenAiAwaitCompletionSchema,
   validate,
 } from './common/schemas/validation.js';
 

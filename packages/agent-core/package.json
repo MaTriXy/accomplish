@@ -37,6 +37,11 @@
       "types": "./dist/common.d.ts",
       "import": "./dist/common.js",
       "default": "./dist/common.js"
+    },
+    "./runtime-types": {
+      "types": "./dist/accomplish-runtime-types.d.ts",
+      "import": "./dist/accomplish-runtime-types.js",
+      "default": "./dist/accomplish-runtime-types.js"
     }
   },
   "files": [
@@ -48,7 +53,7 @@
     "mcp-tools/package.json"
   ],
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "scripts": {
     "build": "tsc",
@@ -61,11 +66,11 @@
     "@aws-sdk/client-bedrock": "^3.971.0",
     "@aws-sdk/credential-providers": "^3.971.0",
     "@azure/identity": "^4.13.0",
+    "@opencode-ai/sdk": "1.2.24",
     "better-sqlite3": "catalog:",
     "gray-matter": "^4.0.3",
-    "node-pty": "catalog:",
     "proxy-from-env": "^2.1.0",
-    "undici": "^7.24.7",
+    "undici": "^8.0.3",
     "zod": "catalog:"
   },
   "devDependencies": {

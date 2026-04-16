@@ -1,5 +1,6 @@
 import { app } from 'electron';
 import path from 'path';
+import fs from 'fs';
 import {
   generateConfig,
   ACCOMPLISH_AGENT_NAME,
@@ -8,6 +9,7 @@ import {
   getOpenCodeAuthPath,
   PERMISSION_API_PORT,
   QUESTION_API_PORT,
+  WHATSAPP_API_PORT,
 } from '@accomplish_ai/agent-core';
 import { getApiKey, getAllApiKeys } from '../store/secureStorage';
 import { getStorage } from '../store/storage';
@@ -15,6 +17,10 @@ import { getBundledNodePaths } from '../utils/bundled-node';
 import { skillsManager } from '../skills';
 import { getLogCollector } from '../logging';
 import * as workspaceManager from '../store/workspaceManager';
+import type { AccountManager } from '../google-accounts/account-manager';
+import { getConnectorAuthStore } from '../connectors/connector-auth-registry';
+import { isDesktopConnectorConnected } from '../connectors/desktop-connector-state';
+import { getConnectorDefinitions } from '@accomplish_ai/agent-core/common';
 
 function logOC(level: 'INFO' | 'WARN' | 'ERROR', msg: string, data?: Record<string, unknown>) {
   try {
@@ -28,6 +34,60 @@ function logOC(level: 'INFO' | 'WARN' | 'ERROR', msg: string, data?: Record<stri
 }
 
 export { ACCOMPLISH_AGENT_NAME };
+
+/**
+ * Writes per-account token files and the manifest used by GWS MCP servers.
+ * Returns the manifest path, or undefined if no connected accounts exist.
+ */
+function prepareGwsManifest(accountManager: AccountManager): string | undefined {
+  const accounts = accountManager.listAccounts().filter((a) => a.status === 'connected');
+  if (accounts.length === 0) {
+    return undefined;
+  }
+
+  const tokenDir = path.join(app.getPath('userData'), 'gws-tokens');
+  fs.mkdirSync(tokenDir, { recursive: true });
+  try {
+    fs.chmodSync(tokenDir, 0o700);
+  } catch {
+    /* non-critical on platforms that don't support chmod */
+  }
+
+  const entries: Array<{
+    googleAccountId: string;
+    label: string;
+    email: string;
+    tokenFilePath: string;
+  }> = [];
+
+  for (const account of accounts) {
+    const token = accountManager.getAccountToken(account.googleAccountId);
+    if (!token) {
+      continue;
+    }
+    const tokenFilePath = path.join(tokenDir, `${account.googleAccountId}.json`);
+    const tmpPath = `${tokenFilePath}.tmp`;
+    fs.writeFileSync(tmpPath, JSON.stringify(token), { encoding: 'utf-8' });
+    fs.renameSync(tmpPath, tokenFilePath);
+    try {
+      fs.chmodSync(tokenFilePath, 0o600);
+    } catch {
+      /* non-critical */
+    }
+    entries.push({
+      googleAccountId: account.googleAccountId,
+      label: account.label,
+      email: account.email,
+      tokenFilePath,
+    });
+  }
+
+  if (entries.length === 0) {
+    return undefined;
+  }
+
+  return accountManager.writeAccountsManifest(entries);
+}
 
 /**
  * Returns the path to MCP tools directory.
@@ -95,10 +155,58 @@ export async function generateOpenCodeConfig(azureFoundryToken?: string): Promis
     azureFoundryToken,
     permissionApiPort: PERMISSION_API_PORT,
     questionApiPort: QUESTION_API_PORT,
+    whatsappApiPort: Number(process.env.ACCOMPLISH_WHATSAPP_API_PORT) || WHATSAPP_API_PORT,
     skills: enabledSkills,
     workspaceId: activeWorkspaceId ?? undefined,
     log: logOC,
   });
+
+  // Prepare GWS manifest for connected Google accounts
+  try {
+    const { getAccountManager } = await import('../google-accounts/index');
+    const accountManager = getAccountManager();
+    const manifestPath = prepareGwsManifest(accountManager);
+    if (manifestPath) {
+      configOptions.gwsAccountsManifestPath = manifestPath;
+      configOptions.gwsAccountsSummary = accountManager
+        .listAccounts()
+        .filter((a) => a.status === 'connected')
+        .map((a) => ({ label: a.label, email: a.email, status: a.status }));
+      logOC(
+        'INFO',
+        `[OpenCode Config] GWS manifest written for ${configOptions.gwsAccountsSummary.length} account(s)`,
+      );
+    }
+  } catch (err) {
+    logOC('WARN', '[OpenCode Config] Failed to prepare GWS manifest', { err: String(err) });
+  }
+
+  // Populate built-in connector statuses for system-prompt injection (T006)
+  try {
+    const { getAccountManager: getAccountManagerForStatus } =
+      await import('../google-accounts/index');
+    const accountManagerForStatus = getAccountManagerForStatus();
+    const defs = getConnectorDefinitions();
+    const statuses: Array<{ displayName: string; connected: boolean }> = [];
+    for (const def of defs) {
+      let connected: boolean;
+      if (def.desktopOAuth.kind === 'desktop-google') {
+        // Google's connected state comes from persisted account rows, not in-memory state.
+        connected = accountManagerForStatus.listAccounts().some((a) => a.status === 'connected');
+      } else {
+        const store = getConnectorAuthStore(def.id);
+        connected = store ? store.getOAuthStatus().connected : isDesktopConnectorConnected(def.id);
+      }
+      statuses.push({ displayName: def.displayName, connected });
+    }
+    if (statuses.length > 0) {
+      configOptions.builtInConnectorStatuses = statuses;
+    }
+  } catch (err) {
+    logOC('WARN', '[OpenCode Config] Failed to read built-in connector statuses', {
+      err: String(err),
+    });
+  }
 
   const result = generateConfig(configOptions);
 

@@ -1,3 +1,6 @@
+// Supported UI languages for validation and type safety
+export const SUPPORTED_LANGUAGES = ['auto', 'en', 'zh-CN', 'ru', 'fr'] as const;
+export type Language = (typeof SUPPORTED_LANGUAGES)[number];
 // Settings handlers are split into focused sub-modules for maintainability.
 import { app, BrowserWindow, nativeTheme } from 'electron';
 import type { IpcMainInvokeEvent } from 'electron';
@@ -57,6 +60,21 @@ export function registerSettingsHandlers(): void {
 
     for (const win of BrowserWindow.getAllWindows()) {
       win.webContents.send('settings:theme-changed', { theme, resolved });
+    }
+  });
+
+  handle('settings:language', async (_event: IpcMainInvokeEvent) => {
+    return storage.getLanguage();
+  });
+
+  handle('settings:set-language', async (_event: IpcMainInvokeEvent, language: string) => {
+    if (!SUPPORTED_LANGUAGES.includes(language as Language)) {
+      throw new Error('Invalid language value');
+    }
+    storage.setLanguage(language as Language);
+    // Broadcast to all renderer windows
+    for (const win of BrowserWindow.getAllWindows()) {
+      win.webContents.send('settings:language-changed', { language });
     }
   });
 

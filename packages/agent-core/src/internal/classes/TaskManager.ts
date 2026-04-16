@@ -7,13 +7,14 @@ import type {
   TaskStatus,
 } from '../../common/types/task.js';
 import type { OpenCodeMessage } from '../../common/types/opencode.js';
-import type { PermissionRequest } from '../../common/types/permission.js';
+import type { PermissionRequest, PermissionResponse } from '../../common/types/permission.js';
 import type { TodoItem } from '../../common/types/todo.js';
 import type { BrowserFramePayload } from '../../common/types/browser-view.js';
 import {
   toTaskMessage,
   flushAndCleanupBatcher,
   queueMessage,
+  type ModelContext,
 } from '../../opencode/message-processor.js';
 import { stopAzureFoundryProxy } from '../../opencode/proxies/azure-foundry-proxy.js';
 import { stopMoonshotProxy } from '../../opencode/proxies/moonshot-proxy.js';
@@ -64,9 +65,9 @@ export interface TaskCallbacks {
 }
 
 export interface TaskManagerOptions {
-  adapterOptions: Omit<AdapterOptions, 'buildCliArgs'> & {
-    buildCliArgs: (config: TaskConfig, taskId: string) => Promise<string[]>;
-  };
+  // Phase 4b of the OpenCode SDK cutover port simplified the adapter options
+  // surface — the PTY-era `buildCliArgs` per-task wrapper is gone.
+  adapterOptions: AdapterOptions;
   defaultWorkingDirectory: string;
   maxConcurrentTasks?: number;
   isCliAvailable: () => Promise<boolean>;
@@ -159,7 +160,6 @@ export class TaskManager {
   ): Promise<Task> {
     const adapterOptions: AdapterOptions = {
       ...this.options.adapterOptions,
-      buildCliArgs: (taskConfig) => this.options.adapterOptions.buildCliArgs(taskConfig, taskId),
     };
 
     const adapter = new OpenCodeAdapter(adapterOptions, taskId);
@@ -174,7 +174,21 @@ export class TaskManager {
 
     const onMessage = (message: OpenCodeMessage) => {
       if (useInternalBatching && batchForward) {
-        const taskMessage = toTaskMessage(message);
+        // Stamp modelId/providerId on every live row. Codex R4 P2 #2:
+        // the message processor supports `ModelContext` and its own
+        // contract says the SDK adapter will always pass it, but this
+        // live site used to call `toTaskMessage(message)` with only
+        // one argument — so despite the adapter tracking the values in
+        // `currentModelId`/`currentProviderId`, they never reached
+        // persisted rows or `task.message` notifications from real
+        // SDK runs. The accessor is optional at the type level for
+        // back-compat with non-SDK adapters; the PTY-era branch just
+        // falls back to an empty context.
+        const modelContext =
+          typeof (adapter as { getModelContext?: () => unknown }).getModelContext === 'function'
+            ? (adapter as unknown as { getModelContext: () => ModelContext }).getModelContext()
+            : undefined;
+        const taskMessage = toTaskMessage(message, modelContext);
         if (taskMessage) {
           queueMessage(taskId, taskMessage, batchForward, () => {});
         }
@@ -413,7 +427,7 @@ export class TaskManager {
     return true;
   }
 
-  async sendResponse(taskId: string, response: string): Promise<void> {
+  async sendResponse(taskId: string, response: PermissionResponse): Promise<void> {
     const managedTask = this.activeTasks.get(taskId);
     if (!managedTask) {
       throw new Error(`Task ${taskId} not found or not active`);

@@ -21,4 +21,19 @@ export interface TaskServiceOptions {
   resourcesPath?: string;
   appPath?: string;
   accomplishRuntime?: AccomplishRuntime;
+  /**
+   * Optional RPC-connectivity probe used by the no-UI auto-deny policy in
+   * `task-callbacks.ts` (Phase 2 of the SDK cutover port). The daemon wires
+   * this to `rpc.hasConnectedClients`. When omitted (tests, tooling), the
+   * task callbacks treat the UI as always connected, so auto-deny only
+   * triggers via explicit bridges like WhatsApp.
+   */
+  rpcConnectivityProbe?: { hasConnectedClients(): boolean };
+  /**
+   * Optional proxy tagger. Wired by the daemon when an optional runtime
+   * module is available at startup. The adapter calls it on task start
+   * (with taskId) and teardown (with undefined). Undefined in pure OSS
+   * builds — no-op.
+   */
+  setProxyTaskId?: (taskId: string | undefined) => void;
 }

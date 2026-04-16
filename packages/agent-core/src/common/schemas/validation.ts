@@ -22,6 +22,11 @@ export const taskConfigSchema = z.object({
   attachments: z.array(fileAttachmentSchema).optional(),
   modelId: z.string().optional(),
   provider: z.string().optional(),
+  /**
+   * Originating surface. Consumed by the daemon's no-UI auto-deny policy.
+   * Defaults to 'ui' when omitted.
+   */
+  source: z.enum(['ui', 'whatsapp', 'scheduler']).optional(),
 });
 
 export const permissionResponseSchema = z.object({
@@ -31,6 +36,20 @@ export const permissionResponseSchema = z.object({
   message: z.string().optional(),
   selectedOptions: z.array(z.string()).optional(),
   customText: z.string().optional(),
+});
+
+// OpenAI ChatGPT OAuth RPC payload schemas. Added in Phase 4a of the
+// OpenCode SDK cutover port so the daemon can own the SDK-based flow.
+//
+// Desktop IPC handler two-call protocol:
+//   startLogin()                           → { sessionId, authorizeUrl }
+//   shell.openExternal(authorizeUrl)       (Electron-only)
+//   awaitCompletion({ sessionId, timeoutMs })
+//                                          → { ok: true, plan } | { ok: false, error }
+
+export const authOpenAiAwaitCompletionSchema = z.object({
+  sessionId: z.string().min(1, 'sessionId is required'),
+  timeoutMs: z.number().int().positive().optional(),
 });
 
 export const resumeSessionSchema = z.object({

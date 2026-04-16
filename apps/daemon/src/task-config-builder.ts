@@ -7,21 +7,15 @@
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
-  buildCliArgs as coreBuildCliArgs,
-  buildOpenCodeEnvironment,
-  resolveCliPath,
   isCliAvailable as coreIsCliAvailable,
   generateConfig,
   buildProviderConfigs,
   syncApiKeysToOpenCodeAuth,
-  getOpenCodeAuthPath,
+  getOpenCodeAuthJsonPath,
   getBundledNodePaths,
-  BedrockCredentials,
-  type TaskConfig,
+  getEnabledSkills,
   type StorageAPI,
-  type EnvironmentConfig,
   type CliResolverConfig,
-  type ProviderId,
   type AccomplishRuntime,
 } from '@accomplish_ai/agent-core';
 
@@ -34,21 +28,11 @@ export interface TaskConfigBuilderOptions {
   accomplishRuntime?: AccomplishRuntime;
 }
 
-export function getCliCommand(opts: TaskConfigBuilderOptions): { command: string; args: string[] } {
-  const cliConfig: CliResolverConfig = {
-    isPackaged: opts.isPackaged,
-    resourcesPath: opts.resourcesPath,
-    appPath: opts.appPath,
-  };
-  const resolved = resolveCliPath(cliConfig);
-  if (resolved) {
-    return { command: resolved.cliPath, args: [] };
-  }
-  if (process.platform === 'win32') {
-    throw new Error('Failed to resolve OpenCode CLI executable on Windows');
-  }
-  return { command: 'opencode', args: [] };
-}
+// Phase 4b of the OpenCode SDK cutover port removed the dead `getCliCommand`,
+// `buildEnvironment`, and `buildCliArgs` helpers. The SDK adapter no longer
+// spawns a CLI per task — `OpenCodeServerManager` runs `opencode serve`
+// directly via `child_process.spawn` and the SDK uses HTTP. The
+// per-task spawn environment is built inside the server-manager itself.
 
 export function getBundledNodeBinPath(opts: TaskConfigBuilderOptions): string | undefined {
   const paths = getBundledNodePaths({
@@ -61,57 +45,6 @@ export function getBundledNodeBinPath(opts: TaskConfigBuilderOptions): string | 
     arch: process.arch,
   });
   return paths?.binDir;
-}
-
-export async function buildEnvironment(
-  taskId: string,
-  storage: StorageAPI,
-  _opts: TaskConfigBuilderOptions,
-): Promise<NodeJS.ProcessEnv> {
-  const env: NodeJS.ProcessEnv = { ...process.env };
-  const apiKeys = await storage.getAllApiKeys();
-  const bedrockCredentials = storage.getBedrockCredentials() as BedrockCredentials | null;
-  const activeModel = storage.getActiveProviderModel();
-  const selectedModel = storage.getSelectedModel();
-  let ollamaHost: string | undefined;
-  if (activeModel?.provider === 'ollama' && activeModel.baseUrl) {
-    ollamaHost = activeModel.baseUrl;
-  } else if (selectedModel?.provider === 'ollama' && selectedModel.baseUrl) {
-    ollamaHost = selectedModel.baseUrl;
-  }
-  const envConfig: EnvironmentConfig = {
-    apiKeys,
-    bedrockCredentials: bedrockCredentials || undefined,
-    taskId: taskId || undefined,
-    ollamaHost,
-  };
-  return buildOpenCodeEnvironment(env, envConfig);
-}
-
-export async function buildCliArgs(config: TaskConfig, storage: StorageAPI): Promise<string[]> {
-  let selectedModel;
-  if (config.modelId && config.provider) {
-    selectedModel = {
-      provider: config.provider as ProviderId,
-      model: config.modelId,
-    };
-  } else if (config.modelId) {
-    // modelId provided without a provider — use storage model for the provider,
-    // but override the model name so the caller's explicit modelId is honoured.
-    const baseModel = storage.getActiveProviderModel() || storage.getSelectedModel();
-    selectedModel = baseModel ? { provider: baseModel.provider, model: config.modelId } : undefined;
-  } else {
-    const activeModel = storage.getActiveProviderModel();
-    selectedModel = activeModel || storage.getSelectedModel();
-  }
-
-  return coreBuildCliArgs({
-    prompt: config.prompt,
-    sessionId: config.sessionId,
-    selectedModel: selectedModel
-      ? { provider: selectedModel.provider, model: selectedModel.model }
-      : null,
-  });
 }
 
 export async function isCliAvailable(opts: TaskConfigBuilderOptions): Promise<boolean> {
@@ -127,7 +60,7 @@ export async function onBeforeStart(
   storage: StorageAPI,
   opts: TaskConfigBuilderOptions,
 ): Promise<{ configPath: string; env: NodeJS.ProcessEnv }> {
-  const authPath = getOpenCodeAuthPath();
+  const authPath = getOpenCodeAuthJsonPath();
   const apiKeys = await storage.getAllApiKeys();
   await syncApiKeysToOpenCodeAuth(authPath, apiKeys);
 
@@ -152,7 +85,29 @@ export async function onBeforeStart(
 
   const permissionApiPort = getPort('ACCOMPLISH_PERMISSION_API_PORT');
   const questionApiPort = getPort('ACCOMPLISH_QUESTION_API_PORT');
+  const whatsappApiPort = getPort('ACCOMPLISH_WHATSAPP_API_PORT');
 
+  const skills = getEnabledSkills();
+
+  // KNOWN GAP — Google Workspace (GWS) feature merged from main (#921) is
+  // not wired into the daemon's task-execution path. `generator-mcp.ts`
+  // only registers `gmail-mcp`, `calendar-mcp`, `gws-mcp`, and
+  // `request-google-file-picker` when `gwsAccountsManifestPath` is set on
+  // the config-generator options below. The only producer of that manifest
+  // is `apps/desktop/src/main/opencode/config-generator.ts`'s
+  // `prepareGwsManifest`, which is no longer on the task-execution path
+  // under SDK architecture (the daemon owns runtime config generation).
+  // Result: users can connect Google accounts in Settings, but real daemon
+  // tasks won't get the GWS MCP tools.
+  //
+  // Wiring it requires the daemon to (a) read `google_accounts` from the
+  // shared SQLite, (b) materialise per-account token files, and (c) pass
+  // `gwsAccountsManifestPath`/`gwsAccountsSummary` into `generateConfig`.
+  // Step (b) is non-trivial because tokens live in Electron's SecureStorage
+  // (AES-256-GCM) which is not directly daemon-accessible — we'd need
+  // either a daemon→desktop "prepare manifest" RPC or a token-storage
+  // layer the daemon can decrypt. Tracked as a follow-up; not in scope
+  // for this merge.
   const result = generateConfig({
     platform: process.platform,
     mcpToolsPath: opts.mcpToolsPath,
@@ -163,17 +118,36 @@ export async function onBeforeStart(
     enabledProviders,
     permissionApiPort,
     questionApiPort,
+    whatsappApiPort,
     authToken: process.env.ACCOMPLISH_DAEMON_AUTH_TOKEN,
     model: modelOverride?.model,
     smallModel: modelOverride?.smallModel,
+    skills,
   });
+
+  // Prepend the bundled Node.js bin dir to the env's PATH so the
+  // `apps/desktop/node_modules/.bin/opencode` shell wrapper (and the
+  // packaged equivalent) can find `node` even when the daemon runs as a
+  // login item with a minimal PATH (e.g. `/usr/bin:/bin:/usr/sbin:/sbin`
+  // with no user-installed Node.js). The deleted PTY-era `buildEnvironment`
+  // helper used to do this; the SDK adapter still needs it because
+  // `opencode serve` is launched by `OpenCodeServerManager.spawnOpenCodeServer`
+  // through the same shell shim.
+  const env: NodeJS.ProcessEnv = {
+    OPENCODE_CONFIG: result.configPath,
+    OPENCODE_CONFIG_DIR: path.dirname(result.configPath),
+  };
+  const bundledNodeBinPath = getBundledNodeBinPath(opts);
+  if (bundledNodeBinPath) {
+    env.PATH = `${bundledNodeBinPath}${path.delimiter}${process.env.PATH ?? ''}`;
+    if (process.platform === 'win32') {
+      env.Path = env.PATH;
+    }
+  }
 
   return {
     configPath: result.configPath,
-    env: {
-      OPENCODE_CONFIG: result.configPath,
-      OPENCODE_CONFIG_DIR: path.dirname(result.configPath),
-    },
+    env,
   };
 }
 export * from './task-service-helpers.js';

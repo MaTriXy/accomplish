@@ -11,6 +11,7 @@ export interface StoredTask {
   createdAt: string;
   startedAt?: string;
   completedAt?: string;
+  workspaceId?: string;
 }
 
 export interface TaskRow {
@@ -22,6 +23,7 @@ export interface TaskRow {
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
+  workspace_id: string | null;
 }
 
 export interface MessageRow {
@@ -33,6 +35,9 @@ export interface MessageRow {
   tool_input: string | null;
   timestamp: string;
   sort_order: number;
+  tool_status: string | null;
+  model_id: string | null;
+  provider_id: string | null;
 }
 
 export interface AttachmentRow {
@@ -94,14 +99,18 @@ export function getMessagesForTask(taskId: string): TaskMessage[] {
         toolInput = row.tool_input;
       }
     }
+    const toolStatus = row.tool_status as TaskMessage['toolStatus'] | null;
     messages.push({
       id: row.id,
       type: row.type as TaskMessage['type'],
       content: row.content,
       toolName: row.tool_name || undefined,
+      toolStatus: toolStatus || undefined,
       toolInput,
       timestamp: row.timestamp,
       attachments,
+      modelId: row.model_id || undefined,
+      providerId: row.provider_id || undefined,
     });
   }
 
@@ -118,6 +127,7 @@ export function rowToTask(row: TaskRow): StoredTask {
     createdAt: row.created_at,
     startedAt: row.started_at || undefined,
     completedAt: row.completed_at || undefined,
+    workspaceId: row.workspace_id || undefined,
     messages: getMessagesForTask(row.id),
   };
 }

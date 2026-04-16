@@ -15,11 +15,15 @@ export type {
   TaskAttachment,
   FileAttachmentInfo,
   TaskMessage,
+  TaskPauseAction,
   TaskResult,
   TaskProgress,
   TaskUpdateEvent,
 } from './common/types/task.js';
 export { STARTUP_STAGES } from './common/types/task.js';
+
+// Google Workspace file picker
+export { GOOGLE_FILE_PICKER_MARKER } from './common/google-picker-constants.js';
 
 // Permission types
 export type {
@@ -148,7 +152,24 @@ export type {
   OAuthMetadata,
   OAuthClientRegistration,
   McpConnector,
+  ConnectorDesktopOAuthKind,
+  ConnectorAuthStoreConfig,
+  ConnectorCallbackBinding,
+  ConnectorMcpDcrOAuthDefinition,
+  ConnectorMcpFixedClientOAuthDefinition,
+  ConnectorCustomOAuthDefinition,
+  ConnectorDesktopOAuthDefinition,
+  ConnectorDefinition,
+  ConnectorAuthStatus,
 } from './common/types/connector.js';
+
+// Connector registry
+export {
+  getConnectorDefinitions,
+  getConnectorDefinition,
+  getMcpConnectorDefinitions,
+  OAUTH_CALLBACK_PORTS,
+} from './common/types/connector-registry.js';
 
 // Cloud browser types
 export type {
@@ -192,7 +213,6 @@ export { DESKTOP_ACTION_TYPES } from './common/types/desktop.js';
 // Other types
 export type { TodoItem } from './common/types/todo.js';
 export type { LogLevel, LogSource, LogEntry } from './common/types/logging.js';
-export type { ThoughtEvent, CheckpointEvent } from './common/types/thought-stream.js';
 export type {
   Recording,
   RecordingAction,
@@ -221,7 +241,6 @@ export { DEFAULT_PRIVACY_CONFIG, RECORDING_SCHEMA_VERSION } from './common/types
 export {
   DEV_BROWSER_PORT,
   DEV_BROWSER_CDP_PORT,
-  THOUGHT_STREAM_PORT,
   PERMISSION_API_PORT,
   QUESTION_API_PORT,
   PERMISSION_REQUEST_TIMEOUT_MS,
@@ -253,6 +272,7 @@ export {
 
 export { isWaitingForUser } from './common/utils/waiting-detection.js';
 export { detectLogSource, LOG_SOURCE_PATTERNS } from './common/utils/log-source-detector.js';
+export { mergeTaskMessage, upsertTaskMessages } from './common/utils/task-message-merge.js';
 
 // === SCHEMAS ===
 export {
@@ -261,3 +281,11 @@ export {
   resumeSessionSchema,
   validate,
 } from './common/schemas/validation.js';
+
+// Google Workspace multi-account types
+export type {
+  GoogleAccountStatus,
+  GoogleAccount,
+  GoogleAccountToken,
+  GwsAccountsContext,
+} from './common/types/google-account.js';

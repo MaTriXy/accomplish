@@ -33,9 +33,27 @@ import { migration as v022 } from './v022-remove-run-in-background.js';
 import { migration as v023 } from './v023-scheduled-tasks.js';
 import { migration as v024 } from './v024-huggingface-local-config.js';
 import { migration as v025 } from './v024-accomplish-ai.js';
-import { migration as v026 } from './v026-recordings.js';
-import { migration as v027 } from './v027-replay-runs.js';
-import { migration as v028 } from './v028-recording-payload-files.js';
+import { migration as v026 } from './v026-language.js';
+import { migration as v027 } from './v027-reconcile-commercial-schema.js';
+import { migration as v028 } from './v028-google-accounts.js';
+// v029 — added by the OpenCode SDK cutover port. Originally numbered v028
+// on the port branch; renumbered to v029 at merge time because the
+// google-accounts migration (#921) claimed v028 first on `main`.
+//
+// UPGRADE NOTE — for developers who ran the port branch BEFORE the merge:
+// your `schema_meta.version` already advanced to 28 against the old v028
+// (sdk-message-fields). After this merge, the runner correctly only runs
+// migrations with `version > storedVersion`, so it will skip v028
+// (google-accounts) entirely and jump to v029. That leaves the
+// `google_accounts` table uncreated and the GWS feature crashes the first
+// time `AccountManager.listAccounts()` runs. Fix: delete the dev SQLite
+// (`rm "$ACCOMPLISH_USERDATA/accomplish-dev.db"`) so the next launch starts
+// from migration 0 and applies both v028 and v029 in order. Fresh installs
+// and `main`-line upgrades are unaffected.
+import { migration as v029 } from './v029-opencode-sdk-message-fields.js';
+import { migration as v030 } from './v030-recordings.js';
+import { migration as v031 } from './v031-replay-runs.js';
+import { migration as v032 } from './v032-recording-payload-files.js';
 
 const migrations: Migration[] = [
   v001,
@@ -66,6 +84,10 @@ const migrations: Migration[] = [
   v026,
   v027,
   v028,
+  v029,
+  v030,
+  v031,
+  v032,
 ];
 const log = createConsoleLogger({ prefix: 'Migrations' });
 
@@ -74,7 +96,7 @@ export function registerMigration(migration: Migration): void {
   migrations.sort((a, b) => a.version - b.version);
 }
 
-export const CURRENT_VERSION = 28;
+export const CURRENT_VERSION = 32;
 export function getStoredVersion(db: Database): number {
   try {
     const tableExists = db

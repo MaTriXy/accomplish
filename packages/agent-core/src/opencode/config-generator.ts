@@ -6,6 +6,7 @@ import {
   ACCOMPLISH_SYSTEM_PROMPT_TEMPLATE,
 } from './system-prompt.js';
 import { buildMcpServers } from './generator-mcp.js';
+import { formatBuiltInConnectorStatusSection } from './completion/context-providers/connector-status.js';
 export type { BrowserConfig, McpServerConfig } from './generator-mcp.js';
 export type {
   ConfigGeneratorOptions,
@@ -26,6 +27,38 @@ import { BASE_PROVIDERS, getBrowserBehaviorInstructions } from './config-generat
 
 const log = createConsoleLogger({ prefix: 'OpenCodeConfig' });
 
+// LANGUAGE_DISPLAY_NAMES uses keys matching LanguagePreference (BCP-47/ISO 639-1, e.g., 'zh-CN', 'ru', 'fr').
+// This list is intentionally minimal and only includes supported UI languages.
+const LANGUAGE_DISPLAY_NAMES: Record<string, string> = {
+  'zh-CN': '中文',
+  ru: 'русский',
+  fr: 'français',
+};
+
+/**
+ * Generates a language instruction directive for the system prompt.
+ *
+ * Returns an empty string for 'auto', 'en', or unknown languages
+ * (English is the model default, so no directive is needed).
+ * For 'zh-CN', returns a Chinese directive. For other supported languages,
+ * returns an English directive using the native display name.
+ */
+function getLanguageInstruction(language: string | undefined): string {
+  if (!language || language === 'auto' || language === 'en') {
+    return '';
+  }
+  // Normalize to match keys (case-sensitive, as in LanguagePreference)
+  const displayName = LANGUAGE_DISPLAY_NAMES[language];
+  if (!displayName) {
+    return '';
+  }
+  if (language === 'zh-CN') {
+    return `#始终用${displayName}交流#`;
+  }
+  // For other supported languages, use an English template with native name
+  return `Always respond in ${displayName}`;
+}
+
 export const ACCOMPLISH_AGENT_NAME = 'accomplish';
 
 export function generateConfig(options: ConfigGeneratorOptions): GeneratedConfig {
@@ -37,17 +70,20 @@ export function generateConfig(options: ConfigGeneratorOptions): GeneratedConfig
     providerConfigs = [],
     permissionApiPort = 9226,
     questionApiPort = 9227,
+    whatsappApiPort,
     userDataPath,
     model,
     smallModel,
     enabledProviders: customEnabledProviders,
+    gwsAccountsManifestPath,
+    gwsAccountsSummary,
   } = options;
 
   const environmentInstructions = getPlatformEnvironmentInstructions(platform);
   let systemPrompt = ACCOMPLISH_SYSTEM_PROMPT_TEMPLATE.replace(
     /\{\{ENVIRONMENT_INSTRUCTIONS\}\}/g,
     environmentInstructions,
-  );
+  ).replace(/\{\{LANGUAGE_INSTRUCTION\}\}/g, getLanguageInstruction(options.language));
 
   if (skills.length > 0) {
     const skillsSection = `
@@ -77,6 +113,61 @@ Use empty array [] if no skills apply to your task.
     systemPrompt += skillsSection;
   }
 
+  if (gwsAccountsManifestPath && gwsAccountsSummary && gwsAccountsSummary.length > 0) {
+    const sanitizeField = (v: string) =>
+      v
+        .replace(/\|/g, '\\|')
+        .replace(/[\r\n]/g, ' ')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    const accountRows = gwsAccountsSummary
+      .map(
+        (a) =>
+          `| ${sanitizeField(a.label)} | ${sanitizeField(a.email)} | ${sanitizeField(a.status)} |`,
+      )
+      .join('\n');
+    const gwsSection = `
+
+<google-workspace-accounts>
+##############################################################################
+# CONNECTED GOOGLE ACCOUNTS
+##############################################################################
+
+The user has connected the following Google accounts. Use the appropriate
+account when performing Gmail or Calendar operations.
+
+| Label | Email | Status |
+|-------|-------|--------|
+${accountRows}
+
+**Routing rules:**
+- For read operations (list, search, get, free-time): omit the \`account\` parameter to
+  query ALL accounts simultaneously.
+- For write operations (send, reply, create, update, delete): ALWAYS specify
+  the \`account\` parameter. If the user does not specify which account to use,
+  ask them before proceeding. Never guess.
+- Address accounts by their Label (e.g. "Work") or full email address.
+- If an account status is "expired", instruct the user to reconnect it in
+  Settings → Integrations → Google Accounts.
+- Do NOT fall back to browser automation when these MCP tools are available.
+
+**Available Google Workspace tools:**
+- \`google_gmail\` — Send, read, and manage Gmail messages (accepts \`account\`)
+- \`google_calendar\` — Create, list, and update Calendar events (accepts \`account\`)
+- \`google_sheets\` — Create/read/write Sheets spreadsheets (accepts \`account\`)
+- \`google_docs\` — Create/read/write Docs documents (accepts \`account\`)
+- \`google_slides\` — Create/read/write Slides presentations (accepts \`account\`)
+- \`request_google_file_picker\` — Request access to Drive files (accepts \`account\`).
+  Provide a \`query\` to search for already-accessible files first. If found, returns
+  metadata directly without interrupting the user. If not found, pauses the task
+  for the user to select files via the Google Picker.
+
+##############################################################################
+</google-workspace-accounts>
+`;
+    systemPrompt += gwsSection;
+  }
+
   if (options.knowledgeNotes) {
     const knowledgeSection = `
 
@@ -97,6 +188,10 @@ ${options.knowledgeNotes}
     systemPrompt += knowledgeSection;
   }
 
+  if (options.builtInConnectorStatuses && options.builtInConnectorStatuses.length > 0) {
+    systemPrompt += formatBuiltInConnectorStatusSection(options.builtInConnectorStatuses);
+  }
+
   if (!bundledNodeBinPath) {
     throw new Error(
       '[OpenCode Config] Missing bundled Node.js path; cannot launch MCP tools. ' +
@@ -115,9 +210,11 @@ ${options.knowledgeNotes}
     nodeExe,
     permissionApiPort,
     questionApiPort,
+    whatsappApiPort,
     browserConfig,
     authToken: options.authToken,
     connectors: options.connectors,
+    gwsAccountsManifestPath,
   });
 
   const hasBrowser = browserConfig.mode !== 'none';

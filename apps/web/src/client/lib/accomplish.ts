@@ -45,7 +45,21 @@ import type {
   CloudBrowserConfig,
   MessagingConnectionStatus,
   ScheduledTask,
+  GoogleAccount,
+  GoogleAccountStatus,
+  OAuthProviderId,
+  ConnectorAuthStatus,
 } from '@accomplish_ai/agent-core/common';
+
+interface GwsAPI {
+  listAccounts(): Promise<GoogleAccount[]>;
+  startAuth(label: string): Promise<{ state: string; authUrl: string }>;
+  completeAuth(state: string, code: string): Promise<GoogleAccount>;
+  removeAccount(id: string): Promise<void>;
+  updateLabel(id: string, label: string): Promise<void>;
+  cancelAuth(state: string): Promise<void>;
+  onStatusChanged(callback: (id: string, status: GoogleAccountStatus) => void): () => void;
+}
 
 // Define the API interface
 interface AccomplishAPI {
@@ -139,7 +153,14 @@ interface AccomplishAPI {
   getTheme(): Promise<string>;
   setTheme(theme: string): Promise<void>;
   onThemeChange?(callback: (data: { theme: string; resolved: string }) => void): () => void;
-  getAppSettings(): Promise<{ debugMode: boolean; onboardingComplete: boolean; theme: string }>;
+  getLanguage(): Promise<string>;
+  setLanguage(language: string): Promise<void>;
+  getAppSettings(): Promise<{
+    debugMode: boolean;
+    onboardingComplete: boolean;
+    theme: string;
+    language: string;
+  }>;
   getCloudBrowserConfig(): Promise<CloudBrowserConfig | null>;
   setCloudBrowserConfig(config: CloudBrowserConfig | null): Promise<void>;
 
@@ -641,6 +662,15 @@ interface AccomplishAPI {
   disconnectConnector(connectorId: string): Promise<void>;
   onMcpAuthCallback?(callback: (url: string) => void): () => void;
 
+  // Built-in connector OAuth (Jira, GitHub, Notion, monday.com, Lightdash, Datadog)
+  getBuiltInConnectorAuthStatus(): Promise<ConnectorAuthStatus[]>;
+  loginBuiltInConnector(providerId: OAuthProviderId): Promise<{ ok: boolean }>;
+  logoutBuiltInConnector(providerId: OAuthProviderId): Promise<void>;
+  lightdashGetServerUrl(): Promise<string | null>;
+  lightdashSetServerUrl(url: string): Promise<void>;
+  datadogGetServerUrl(): Promise<string | null>;
+  datadogSetServerUrl(url: string): Promise<void>;
+
   // Accomplish AI Free Tier
   accomplishAiConnect(): Promise<{
     deviceFingerprint: string;
@@ -669,6 +699,113 @@ interface AccomplishAPI {
 
   // Build capabilities
   getBuildCapabilities(): Promise<{ hasFreeMode: boolean; hasAnalytics: boolean }>;
+
+  // Google Workspace multi-account
+  gws?: GwsAPI;
+
+  // Analytics — renderer-side tracking bridge
+  analytics: {
+    track(eventName: string, params?: Record<string, string | number | boolean>): Promise<void>;
+    trackPageView(pagePath: string, pageTitle?: string): Promise<void>;
+    trackSubmitTask(): Promise<void>;
+    trackNewTask(): Promise<void>;
+    trackOpenSettings(): Promise<void>;
+    trackSaveApiKey(provider: string, success: boolean, connectionMethod?: string): Promise<void>;
+    trackSelectProvider(provider: string): Promise<void>;
+    trackSelectModel(model: string, provider?: string): Promise<void>;
+    trackToggleDebugMode(enabled: boolean): Promise<void>;
+    trackTaskStart(taskId: string, sessionId: string, taskType: string): Promise<void>;
+    trackTaskComplete(
+      taskId: string,
+      sessionId: string,
+      taskType: string,
+      durationMs: number,
+      totalSteps: number,
+      hadErrors: boolean,
+    ): Promise<void>;
+    trackTaskError(
+      taskId: string,
+      sessionId: string,
+      taskType: string,
+      durationMs: number,
+      totalSteps: number,
+      errorType: string,
+    ): Promise<void>;
+    trackPermissionRequested(
+      taskId: string,
+      sessionId: string,
+      taskType: string,
+      permissionType: string,
+    ): Promise<void>;
+    trackPermissionResponse(
+      taskId: string,
+      sessionId: string,
+      taskType: string,
+      permissionType: string,
+      granted: boolean,
+    ): Promise<void>;
+    trackToolUsed(
+      taskId: string,
+      sessionId: string,
+      taskType: string,
+      toolName: string,
+    ): Promise<void>;
+    trackUserInteraction(
+      taskId: string,
+      sessionId: string,
+      taskType: string,
+      interactionType: string,
+      usedSuggestion: boolean,
+    ): Promise<void>;
+    trackAppClose(): Promise<void>;
+    trackAppBackgrounded(): Promise<void>;
+    trackAppForegrounded(): Promise<void>;
+    trackModelSelectionStep(
+      step: string,
+      isOnboarding: boolean,
+      provider?: string,
+      model?: string,
+    ): Promise<void>;
+    trackModelSelectionComplete(
+      provider: string,
+      isOnboarding: boolean,
+      model?: string,
+    ): Promise<void>;
+    trackModelSelectionAbandoned(lastStep: string, isOnboarding: boolean): Promise<void>;
+    trackHistoryViewed(): Promise<void>;
+    trackTaskFromHistory(): Promise<void>;
+    trackHistoryCleared(): Promise<void>;
+    trackTaskDetailsExpanded(): Promise<void>;
+    trackOutputCopied(): Promise<void>;
+    trackProviderDisconnected(provider: string): Promise<void>;
+    trackHelpLinkClicked(provider: string): Promise<void>;
+    trackSkillAction(params: {
+      action: string;
+      skill_name?: string;
+      enabled?: boolean;
+      filter?: string;
+      source?: string;
+    }): Promise<void>;
+    trackSaveVoiceApiKey(success: boolean): Promise<void>;
+    trackExportLogs(): Promise<void>;
+    trackThreadExported(): Promise<void>;
+    trackTaskLauncherAction(action: string): Promise<void>;
+    trackTaskFeedback(
+      taskId: string,
+      sessionId: string,
+      rating: string,
+      taskStatus: string,
+      feedbackStage: string,
+      feedbackReason?: string,
+      feedbackText?: string,
+    ): Promise<void>;
+    trackStopAgent(taskId: string, sessionId: string): Promise<void>;
+    trackProviderBoxClicked(params: {
+      provider_id: string;
+      is_connected: boolean;
+      is_onboarding: boolean;
+    }): Promise<void>;
+  };
 }
 
 interface AccomplishShell {
@@ -749,6 +886,49 @@ export function getAccomplish() {
         error?: string;
       }) => void,
     ) => window.accomplish!.onHuggingFaceDownloadProgress(callback),
+
+    // Google Workspace flat helpers — delegate to the gws namespace
+    gwsListAccounts: (): Promise<GoogleAccount[]> => {
+      if (!window.accomplish?.gws) {
+        return Promise.reject(new Error('GWS API not available'));
+      }
+      return window.accomplish.gws.listAccounts();
+    },
+
+    gwsStartAuth: (label: string): Promise<{ state: string; authUrl: string }> => {
+      if (!window.accomplish?.gws) {
+        return Promise.reject(new Error('GWS API not available'));
+      }
+      return window.accomplish.gws.startAuth(label);
+    },
+
+    gwsCompleteAuth: (state: string, code: string): Promise<GoogleAccount> => {
+      if (!window.accomplish?.gws) {
+        return Promise.reject(new Error('GWS API not available'));
+      }
+      return window.accomplish.gws.completeAuth(state, code);
+    },
+
+    gwsRemoveAccount: (id: string): Promise<void> => {
+      if (!window.accomplish?.gws) {
+        return Promise.reject(new Error('GWS API not available'));
+      }
+      return window.accomplish.gws.removeAccount(id);
+    },
+
+    gwsUpdateLabel: (id: string, label: string): Promise<void> => {
+      if (!window.accomplish?.gws) {
+        return Promise.reject(new Error('GWS API not available'));
+      }
+      return window.accomplish.gws.updateLabel(id, label);
+    },
+
+    gwsOnStatusChanged: (cb: (id: string, status: GoogleAccountStatus) => void): (() => void) => {
+      if (!window.accomplish?.gws) {
+        throw new Error('GWS API not available');
+      }
+      return window.accomplish.gws.onStatusChanged(cb);
+    },
   };
 }
 

@@ -31,29 +31,28 @@ const skillsDir = path.join(
 );
 
 // Skills that have runtime dependencies (playwright) that cannot be bundled
-const SKILLS_WITH_RUNTIME_DEPS = ['dev-browser', 'dev-browser-mcp'];
+const SKILLS_WITH_RUNTIME_DEPS = ['dev-browser', 'dev-browser-mcp', 'gws-mcp'];
 
-// Skills that are fully bundled (no runtime node_modules needed)
+// Skills that are fully bundled (no runtime node_modules needed).
+//
+// `ask-user-question` and `file-permission` were removed by Phase 3 of the
+// OpenCode SDK cutover port — their HTTP-callback plumbing was replaced by
+// native SDK `permission.asked` / `question.asked` events handled inside
+// `OpenCodeAdapter`. Keep this list synchronised with `mcp-tools/` directory
+// contents; any skill listed here but absent on disk would fail the build.
 const SKILLS_FULLY_BUNDLED = [
-  'ask-user-question',
-  'file-permission',
   'complete-task',
   'request-connector-auth',
   'start-task',
   'desktop-control',
+  'whatsapp',
+  'request-google-file-picker',
 ];
 
+// Skills that need googleapis at runtime — bundle JS but mark googleapis as external
+const SKILLS_WITH_GOOGLEAPIS = ['gmail-mcp', 'calendar-mcp'];
+
 const bundles = [
-  {
-    name: 'ask-user-question',
-    entry: 'src/index.ts',
-    outfile: 'dist/index.mjs',
-  },
-  {
-    name: 'file-permission',
-    entry: 'src/index.ts',
-    outfile: 'dist/index.mjs',
-  },
   {
     name: 'complete-task',
     entry: 'src/index.ts',
@@ -75,10 +74,54 @@ const bundles = [
     outfile: 'dist/index.mjs',
   },
   {
+    name: 'whatsapp',
+    entry: 'src/index.ts',
+    outfile: 'dist/index.mjs',
+  },
+  {
+    // gmail-mcp uses googleapis at runtime — bundle JS but mark googleapis as external
+    name: 'gmail-mcp',
+    entry: 'src/index.ts',
+    outfile: 'dist/index.mjs',
+    external: ['googleapis'],
+  },
+  {
+    // calendar-mcp uses googleapis at runtime — bundle JS but mark googleapis as external
+    name: 'calendar-mcp',
+    entry: 'src/index.ts',
+    outfile: 'dist/index.mjs',
+    external: ['googleapis'],
+  },
+  {
+    name: 'request-google-file-picker',
+    entry: 'src/index.ts',
+    outfile: 'dist/index.mjs',
+  },
+  {
+    // gws-mcp requires @googleworkspace/cli at runtime (native binary).
+    // Bundle the JS wrapper but leave the CLI package as external.
+    name: 'gws-mcp',
+    entry: 'src/index.ts',
+    outfile: 'dist/index.mjs',
+    external: ['@googleworkspace/cli'],
+  },
+  {
     name: 'dev-browser-mcp',
     entry: 'src/index.ts',
     outfile: 'dist/index.mjs',
     external: ['playwright'],
+  },
+  {
+    // Main HTTP server — output as ESM (.mjs) since start-server.ts uses top-level await
+    // and import.meta.url which are incompatible with CJS format.
+    // Referenced by packages/agent-core/src/browser/server.ts via hardcoded path.
+    // Entry must be start-server.ts (calls serve() + keeps process alive), NOT src/index.ts
+    // (which only exports serve without calling it — causes immediate exit with no listener).
+    name: 'dev-browser',
+    entry: 'scripts/start-server.ts',
+    outfile: 'server.mjs',
+    external: ['playwright'],
+    banner: true,
   },
   {
     name: 'dev-browser',
@@ -98,7 +141,11 @@ const bundles = [
 
 function validateSkillDependencyCategories() {
   const bundledSkillNames = new Set(bundles.map((bundle) => bundle.name));
-  const categorizedSkillNames = new Set([...SKILLS_WITH_RUNTIME_DEPS, ...SKILLS_FULLY_BUNDLED]);
+  const categorizedSkillNames = new Set([
+    ...SKILLS_WITH_RUNTIME_DEPS,
+    ...SKILLS_FULLY_BUNDLED,
+    ...SKILLS_WITH_GOOGLEAPIS,
+  ]);
   const uncategorizedSkills = [...bundledSkillNames].filter(
     (skillName) => !categorizedSkillNames.has(skillName),
   );
@@ -132,7 +179,14 @@ function verifyBundleOutputs() {
   }
 }
 
-async function bundleSkill({ name, entry, outfile, external = [], banner: needsBanner }) {
+async function bundleSkill({
+  name,
+  entry,
+  outfile,
+  external = [],
+  banner: needsBanner,
+  format: outputFormat,
+}) {
   const skillDir = path.join(skillsDir, name);
   const absEntry = path.join(skillDir, entry);
   const absOutfile = path.join(skillDir, outfile);
@@ -158,7 +212,7 @@ async function bundleSkill({ name, entry, outfile, external = [], banner: needsB
     outfile: absOutfile,
     bundle: true,
     platform: 'node',
-    format: 'esm',
+    format: outputFormat || 'esm',
     ...(needsBanner && {
       banner: {
         js: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);",
@@ -220,6 +274,29 @@ function reinstallProductionDepsForBundledBuild() {
     if (fs.existsSync(nodeModulesPath)) {
       fs.rmSync(nodeModulesPath, { recursive: true, force: true });
       console.log(`[bundle-skills] Removed ${nodeModulesPath} (fully bundled)`);
+    }
+  }
+
+  // Skills with googleapis as external dep: keep production node_modules (googleapis only)
+  for (const skillName of SKILLS_WITH_GOOGLEAPIS) {
+    const skillPath = path.join(skillsDir, skillName);
+    const packageJsonPath = path.join(skillPath, 'package.json');
+
+    if (!fs.existsSync(packageJsonPath)) {
+      console.log(`[bundle-skills] Skipping ${skillName}: no package.json`);
+      continue;
+    }
+
+    console.log(`[bundle-skills] Installing production deps for ${skillName} (googleapis)...`);
+    try {
+      execSync('npm install --omit=dev --ignore-scripts', {
+        cwd: skillPath,
+        stdio: 'inherit',
+      });
+      console.log(`[bundle-skills] Installed production deps for ${skillName}`);
+    } catch (error) {
+      console.error(`[bundle-skills] Failed to install deps for ${skillName}:`, error.message);
+      throw error;
     }
   }
 }

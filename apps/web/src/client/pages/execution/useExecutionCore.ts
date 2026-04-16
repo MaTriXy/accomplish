@@ -29,7 +29,7 @@ export function useExecutionCore() {
   const [repeatingTask, setRepeatingTask] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<
-    'providers' | 'voice' | 'skills' | 'connectors'
+    'providers' | 'voice' | 'skills' | 'integrations'
   >('providers');
   const [taskActionError, setTaskActionError] = useState<string | null>(null);
   const [isTaskActionRunning, setIsTaskActionRunning] = useState(false);
@@ -122,11 +122,15 @@ export function useExecutionCore() {
     currentTask?.status ?? '',
   );
   const hasSession = currentTask?.sessionId || currentTask?.result?.sessionId;
-  const isAuthPause = currentTask?.result?.pauseReason === 'auth';
-  const pauseAction = currentTask?.result?.pauseAction;
+  const result = currentTask?.result;
+  const isAuthPause = result && 'pauseReason' in result && result.pauseReason === 'oauth';
+  const pauseAction = result && 'pauseAction' in result ? result.pauseAction : undefined;
   const canFollowUp = isComplete && (hasSession || currentTask?.status === 'interrupted');
-  const isConnectorAuthPause =
-    currentTask?.status === 'completed' && isAuthPause && pauseAction?.type === 'oauth-connect';
+  const isConnectorAuthPause: boolean = !!(
+    currentTask?.status === 'completed' &&
+    isAuthPause &&
+    pauseAction?.type === 'oauth-connect'
+  );
   let taskActionLabel: string;
   if (currentTask?.status === 'interrupted') {
     taskActionLabel = tCommon('buttons.continue');

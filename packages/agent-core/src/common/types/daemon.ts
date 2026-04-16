@@ -16,7 +16,6 @@ import type {
   TaskStatus,
 } from './task.js';
 import type { PermissionRequest, PermissionResponse } from './permission.js';
-import type { ThoughtEvent, CheckpointEvent } from './thought-stream.js';
 import type { TodoItem } from './todo.js';
 import type { CreditUsage } from './gateway.js';
 
@@ -87,6 +86,19 @@ export interface TaskStartParams {
   allowedTools?: string[];
   systemPromptAppend?: string;
   outputSchema?: object;
+  /**
+   * Originating surface — `'ui' | 'whatsapp' | 'scheduler'`. Drives the
+   * no-UI auto-deny policy for permission/question prompts when the task
+   * runs headlessly (Phase 2 of the SDK cutover port, decision #5).
+   *
+   * The runtime zod schema at `validation.ts:taskConfigSchema` already
+   * accepts this field, but any typed RPC caller that follows this
+   * interface used to silently omit it and default to `'ui'`. WhatsApp
+   * bridge and scheduler callers call `TaskService.startTask` directly
+   * (not via RPC), so they were unaffected; the gap mattered for any
+   * future RPC-path caller.
+   */
+  source?: import('./task.js').TaskSource;
 }
 
 /** Parameters for task.cancel / task.interrupt */
@@ -97,6 +109,8 @@ export interface TaskIdParams {
 /** Parameters for task.list (optional workspace filter) */
 export interface TaskListParams {
   workspaceId?: string;
+  /** When true, also return tasks with no workspace (workspace_id IS NULL) */
+  includeUnassigned?: boolean;
 }
 
 /** Parameters for task.sendResponse */
@@ -250,7 +264,7 @@ export interface DaemonMethodMap {
   'whatsapp.setEnabled': { params: { enabled: boolean }; result: void };
 
   // Health & lifecycle
-  'daemon.ping': { params: undefined; result: { status: 'ok'; uptime: number } };
+  'daemon.ping': { params: undefined; result: { status: 'ok'; uptime: number; buildId?: string } };
   'daemon.shutdown': { params: undefined; result: void };
   'health.check': { params: undefined; result: HealthCheckResult };
 
@@ -261,6 +275,27 @@ export interface DaemonMethodMap {
   };
   'accomplish-ai.get-usage': { params: undefined; result: CreditUsage };
   'accomplish-ai.disconnect': { params: undefined; result: void };
+
+  // OpenAI ChatGPT OAuth (Phase 4a of the SDK cutover port).
+  // Four-method protocol — desktop calls `startLogin` + `awaitCompletion`
+  // around an `Electron shell.openExternal`; `status` and `getAccessToken`
+  // are non-flow reads used by settings UI and model discovery respectively.
+  'auth.openai.startLogin': {
+    params: undefined;
+    result: { sessionId: string; authorizeUrl: string };
+  };
+  'auth.openai.awaitCompletion': {
+    params: { sessionId: string; timeoutMs?: number };
+    result: { ok: true; plan: 'free' | 'paid' } | { ok: false; error: string };
+  };
+  'auth.openai.status': {
+    params: undefined;
+    result: { connected: boolean; expires?: number };
+  };
+  'auth.openai.getAccessToken': {
+    params: undefined;
+    result: string | null;
+  };
 }
 
 /** All valid daemon RPC method names. */
@@ -277,13 +312,23 @@ export interface DaemonNotificationMap {
   'task.summary': { taskId: string; summary: string };
   'task.complete': { taskId: string; result: TaskResult };
   'task.error': { taskId: string; error?: string };
-  'permission.request': { taskId: string; request: PermissionRequest };
+  // Phase 2 of the SDK cutover port decided to stay with the flat
+  // `PermissionRequest` wire shape. The runtime at
+  // `apps/daemon/src/task-event-forwarding.ts:24` forwards the flat payload,
+  // `packages/agent-core/src/daemon/types.ts:166` is flat too, and renderer
+  // consumers read `request.taskId` directly. Earlier drafts of this map
+  // said `{ taskId, request }` — that never matched the wire; typed callers
+  // and future refactors would have carried a bogus contract.
+  'permission.request': PermissionRequest;
   'todo.update': { taskId: string; todos: TodoItem[] };
-  'thought.event': ThoughtEvent;
-  'checkpoint.event': CheckpointEvent;
-  // Extended notifications used by the standalone daemon process
-  'task.thought': ThoughtEvent;
-  'task.checkpoint': CheckpointEvent;
+  // Connector auth-required marker observed in tool output. Renderer
+  // subscribes via `accomplish.onAuthError`. Added alongside the P1
+  // task-callbacks wiring fix (Codex R4 P1 #1).
+  'auth.error': { taskId: string; providerId: string; message: string };
+  // Browser preview frames from `dev-browser-mcp` tool output. Renderer
+  // subscribes via `accomplish.onBrowserFrame`. ENG-695 / PR #414 —
+  // plan decision #7 explicitly preserves this path.
+  'browser.frame': { taskId: string; [key: string]: unknown };
 
   // Accomplish AI credit usage updates (emitted by proxy on each gateway response)
   'accomplish-ai.usage-update': CreditUsage;

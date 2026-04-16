@@ -1,78 +1,40 @@
-import { chromium, type Browser, type Page, type CDPSession } from 'playwright';
+import { chromium, type Browser, type CDPSession, type Page } from 'playwright';
 import { BrowserManager, isRecoverableConnectionError } from './browser-manager.js';
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+export { isRecoverableConnectionError };
 
 export type ConnectionMode = 'builtin' | 'remote';
 
-export interface ConnectionConfig {
-  mode: ConnectionMode;
-  /** For 'builtin': the dev-browser HTTP server URL (e.g. http://localhost:9224) */
-  devBrowserUrl?: string;
-  /** For 'remote': the CDP endpoint URL (e.g. http://localhost:9222 or ws://...) */
-  cdpEndpoint?: string;
-  /** For 'remote': optional headers for CDP connection (e.g. auth) */
-  cdpHeaders?: Record<string, string>;
-  /** Task ID for page name isolation */
+export interface BuiltinConnectionConfig {
+  mode: 'builtin';
+  devBrowserUrl: string;
   taskId: string;
+  cdpHeaders?: never;
+  cdpEndpoint?: never;
 }
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-interface PageSessionState {
-  page: Page;
-  cdpSession: CDPSession | null;
+export interface RemoteConnectionConfig {
+  mode: 'remote';
+  cdpEndpoint: string;
+  cdpHeaders?: Record<string, string>;
+  taskId: string;
+  devBrowserUrl?: never;
 }
 
-// ---------------------------------------------------------------------------
-// Shared state
-// ---------------------------------------------------------------------------
+export type ConnectionConfig = BuiltinConnectionConfig | RemoteConnectionConfig;
 
-const browserManager = new BrowserManager();
-const localPageRegistry = browserManager.getLocalPageRegistry();
+// ─── Singleton state ────────────────────────────────────────────────────────
 
-/**
- * Per-page CDP session registry.
- * Reuses an existing session when available; creates one on first access.
- * Sessions are cleaned up automatically when the page closes.
- *
- * Contributed by samarthsinh2660 (PR #414) for ENG-695.
- */
-const pageSessionRegistry = new Map<string, PageSessionState>();
+// Use buildConfigFromEnv (hoisted function declaration) to avoid TDZ issue
+let _config: ConnectionConfig = buildConfigFromEnv();
+const _manager = new BrowserManager();
 
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
+// Cache CDP session promises per page to prevent concurrent creation races
+const _cdpSessionCache = new WeakMap<Page, Promise<CDPSession>>();
 
-export function getConnectionMode(): ConnectionMode {
-  return config.mode;
-}
+// ─── Configuration helpers ──────────────────────────────────────────────────
 
-export { isRecoverableConnectionError };
-
-export function getCachedServerMode(): string | null {
-  return browserManager.getCachedServerMode();
-}
-
-export function getBrowser(): Browser | null {
-  return browserManager.getBrowser();
-}
-
-let config: ConnectionConfig;
-
-export function configure(cfg: ConnectionConfig): void {
-  config = cfg;
-}
-
-/**
- * Detect config from environment variables.
- * CDP_ENDPOINT -> remote mode, else -> builtin mode.
- */
-export function configureFromEnv(): ConnectionConfig {
+// Pure function: builds config from environment, no side effects
+function buildConfigFromEnv(): ConnectionConfig {
   const cdpEndpoint = process.env.CDP_ENDPOINT;
   const taskId = process.env.ACCOMPLISH_TASK_ID || 'default';
 
@@ -81,307 +43,314 @@ export function configureFromEnv(): ConnectionConfig {
     if (process.env.CDP_SECRET) {
       headers['X-CDP-Secret'] = process.env.CDP_SECRET;
     }
-    config = { mode: 'remote', cdpEndpoint, cdpHeaders: headers, taskId };
-  } else {
-    const port = parseInt(process.env.DEV_BROWSER_PORT || '9224', 10);
-    config = { mode: 'builtin', devBrowserUrl: `http://localhost:${port}`, taskId };
+    return { mode: 'remote', cdpEndpoint, cdpHeaders: headers, taskId };
   }
 
-  return config;
+  let port = parseInt(process.env.DEV_BROWSER_PORT || '9224', 10);
+  if (!Number.isFinite(port) || !Number.isInteger(port) || port < 1 || port > 65535) {
+    port = 9224;
+  }
+  // Use 127.0.0.1 instead of localhost to avoid macOS Local Network permission
+  // dialog and ensure IPv4 loopback is used consistently.
+  return { mode: 'builtin', devBrowserUrl: `http://127.0.0.1:${port}`, taskId };
+}
+
+// Internal helper: async cleanup that propagates errors
+async function clearCachedBrowser(): Promise<void> {
+  await _manager.clearCachedBrowser();
+}
+
+// Read from environment and update singleton config.
+// Synchronous so callers at module-load and in tests can read the returned
+// ConnectionConfig immediately.  Browser disconnection is fire-and-forget —
+// the next tool call will reconnect with the new config.
+export function configureFromEnv(): ConnectionConfig {
+  const newConfig = buildConfigFromEnv();
+  void clearCachedBrowser();
+  _config = newConfig;
+  return _config;
+}
+
+// Update singleton config directly (for testing or runtime reconfiguration).
+// Synchronous for the same reason as configureFromEnv.
+export function configure(config: ConnectionConfig): void {
+  void clearCachedBrowser();
+  _config = config;
+}
+
+// Reset singleton state (for testing)
+export async function resetConnection(): Promise<void> {
+  _config = buildConfigFromEnv();
+  await _manager.resetConnection();
+}
+
+// Page name isolation: always prefix with taskId
+export function getFullPageName(pageName?: string): string {
+  return `${_config.taskId}-${pageName || 'main'}`;
+}
+
+// ─── Public API ─────────────────────────────────────────────────────────────
+
+export function getConnectionMode(): ConnectionMode {
+  return _config.mode;
 }
 
 export async function ensureConnected(): Promise<Browser> {
-  return browserManager.ensureConnected(async () => {
-    if (config.mode === 'remote') {
-      return connectRemote();
-    }
-    return connectBuiltin();
-  });
-}
-
-export function getFullPageName(pageName?: string): string {
-  const name = pageName || 'main';
-  return `${config.taskId}-${name}`;
+  return _manager.ensureConnected(() => connectBrowser(_config));
 }
 
 export async function getPage(pageName?: string): Promise<Page> {
-  const resolvedName = pageName || 'main';
-  return browserManager.withConnectionRecovery(async () => {
-    if (config.mode === 'remote') {
-      return getPageRemote(pageName);
-    }
-    return getPageBuiltin(pageName);
-  }, `getPage(${resolvedName})`);
+  const fullName = getFullPageName(pageName);
+
+  if (_config.mode === 'builtin') {
+    return getBuiltinPage(fullName);
+  }
+
+  return getRemotePage(fullName);
 }
 
 export async function listPages(): Promise<string[]> {
-  return browserManager.withConnectionRecovery(async () => {
-    if (config.mode === 'remote') {
-      return listPagesRemote();
+  const prefix = `${_config.taskId}-`;
+
+  if (_config.mode === 'builtin') {
+    const url = `${_config.devBrowserUrl}/pages`;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`Failed to list pages: HTTP ${res.status} at ${url}`);
+      }
+      const data = (await res.json()) as { pages: string[] };
+      return data.pages.filter((n) => n.startsWith(prefix)).map((n) => n.slice(prefix.length));
+    } catch (err) {
+      throw new Error(
+        `Error listing pages from dev-browser at ${url}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
-    return listPagesBuiltin();
-  }, 'listPages');
+  }
+
+  // Remote mode: return public page names by stripping the taskId prefix
+  return Array.from(_manager.getLocalPageRegistry().keys())
+    .filter((n) => n.startsWith(prefix))
+    .map((n) => n.slice(prefix.length));
 }
 
-export async function closePage(pageName: string): Promise<boolean> {
-  return browserManager.withConnectionRecovery(async () => {
-    if (config.mode === 'remote') {
-      return closePageRemote(pageName);
+export async function closePage(pageName?: string): Promise<boolean> {
+  const fullName = getFullPageName(pageName);
+
+  if (_config.mode === 'builtin') {
+    const url = `${_config.devBrowserUrl}/pages/${encodeURIComponent(fullName)}`;
+    try {
+      const res = await fetch(url, { method: 'DELETE' });
+      if (!res.ok) {
+        console.error(`Failed to close page "${fullName}" via fetch:`, res.status, res.statusText);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error(`Failed to close page "${fullName}" via fetch:`, err);
+      return false;
     }
-    return closePageBuiltin(pageName);
-  }, `closePage(${pageName})`);
+  }
+
+  const registry = _manager.getLocalPageRegistry();
+  const page = registry.get(fullName);
+  if (!page) {
+    return false;
+  }
+  try {
+    await page.close();
+    registry.delete(fullName);
+    return true;
+  } catch (err) {
+    console.error(`Failed to close page "${fullName}":`, err);
+    return false;
+  }
 }
 
 /**
- * Get (or create) a CDP session for the given page.
- * The session is cached in `pageSessionRegistry` and automatically removed
- * when the underlying page closes.
- *
- * Contributed by samarthsinh2660 (PR #414) for ENG-695.
+ * Restores and focuses the OS window for the given page.
+ * Called when auth/interaction detection requires user to see the browser.
  */
-export async function getCDPSession(pageName?: string): Promise<CDPSession> {
+export async function focusPageWindow(pageName?: string): Promise<void> {
+  if (_config.mode !== 'builtin') {
+    return;
+  }
   const fullName = getFullPageName(pageName);
-  let state = pageSessionRegistry.get(fullName);
+  const url = `${_config.devBrowserUrl}/pages/${encodeURIComponent(fullName)}/focus`;
+  await fetch(url, { method: 'POST' }).catch(() => {
+    // best-effort — never block the tool call on window management
+  });
+}
 
-  if (!state || state.page.isClosed()) {
-    pageSessionRegistry.delete(fullName);
-    const page = await getPage(pageName);
-    const context = page.context();
-    const cdpSession = await context.newCDPSession(page);
+/**
+ * Minimizes the OS window for the given page.
+ * Called when the user has completed an interaction and the page is no longer auth-gated.
+ */
+export async function backgroundPageWindow(pageName?: string): Promise<void> {
+  if (_config.mode !== 'builtin') {
+    return;
+  }
+  const fullName = getFullPageName(pageName);
+  const url = `${_config.devBrowserUrl}/pages/${encodeURIComponent(fullName)}/background`;
+  await fetch(url, { method: 'POST' }).catch(() => {
+    // best-effort — never block the tool call on window management
+  });
+}
 
-    state = { page, cdpSession };
-    pageSessionRegistry.set(fullName, state);
+export async function getCDPSession(pageName?: string): Promise<CDPSession> {
+  const page = await getPage(pageName);
 
-    // Clean up when page closes
-    page.on('close', () => {
-      const current = pageSessionRegistry.get(fullName);
-      if (current && current.cdpSession) {
-        current.cdpSession.detach().catch(() => {});
-      }
-      pageSessionRegistry.delete(fullName);
+  // Return cached promise if available (prevents concurrent creation races)
+  const cached = _cdpSessionCache.get(page);
+  if (cached) {
+    return cached;
+  }
+
+  // Create new session promise and cache it immediately
+  const context = page.context();
+  if (!context) {
+    throw new Error('No browser context available for page');
+  }
+
+  const sessionPromise = context.newCDPSession(page).then(
+    (session) => {
+      // Clean up cache entry when page closes
+      page.once('close', () => {
+        _cdpSessionCache.delete(page);
+      });
+      return session;
+    },
+    (error) => {
+      // Remove failed promise from cache to allow retry
+      _cdpSessionCache.delete(page);
+      throw error;
+    },
+  );
+
+  _cdpSessionCache.set(page, sessionPromise);
+  return sessionPromise;
+}
+
+// ─── Internal helpers ────────────────────────────────────────────────────────
+
+const BROWSER_CONNECT_MAX_ATTEMPTS = 3;
+const BROWSER_CONNECT_RETRY_BASE_MS = 500;
+
+async function connectBrowser(config: ConnectionConfig): Promise<Browser> {
+  if (config.mode === 'remote') {
+    return chromium.connectOverCDP(config.cdpEndpoint, {
+      headers: config.cdpHeaders,
     });
   }
 
-  if (!state.cdpSession) {
-    const context = state.page.context();
-    state.cdpSession = await context.newCDPSession(state.page);
-  }
-
-  return state.cdpSession;
-}
-
-export function resetConnection(): void {
-  // Detach all cached CDP sessions before resetting the browser connection
-  for (const state of pageSessionRegistry.values()) {
-    if (state.cdpSession) {
-      state.cdpSession.detach().catch(() => {});
-    }
-  }
-  pageSessionRegistry.clear();
-  browserManager.resetConnection();
-}
-
-// ---------------------------------------------------------------------------
-// Builtin mode (existing behavior -- talks to dev-browser HTTP server)
-// ---------------------------------------------------------------------------
-
-async function fetchWithRetry(
-  url: string,
-  options?: RequestInit,
-  maxRetries = 3,
-  baseDelayMs = 100,
-): Promise<Response> {
-  let lastError: Error | null = null;
-  for (let i = 0; i < maxRetries; i++) {
+  // Builtin: fetch wsEndpoint from dev-browser HTTP server, then connect via CDP.
+  // Retry with backoff to handle the race condition where the HTTP server is still
+  // starting up when the first tool call arrives (ENG-1514).
+  const infoUrl = `${config.devBrowserUrl}/`;
+  let lastError: Error | undefined;
+  for (let attempt = 0; attempt < BROWSER_CONNECT_MAX_ATTEMPTS; attempt++) {
     try {
-      const res = await fetch(url, options);
-      return res;
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      const isConnectionError = isRecoverableConnectionError(lastError);
-      if (!isConnectionError || i >= maxRetries - 1) {
-        throw lastError;
+      const res = await fetch(infoUrl, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) {
+        throw new Error(`dev-browser health check failed: ${res.status}`);
       }
-      const delay = baseDelayMs * Math.pow(2, i) + Math.random() * 50;
-      await new Promise((resolve) => setTimeout(resolve, delay));
+      const info = (await res.json()) as { wsEndpoint: string };
+      if (!info.wsEndpoint) {
+        // Chrome not yet launched — treat as a recoverable error so the retry loop
+        // waits and tries again (the POST /pages call will trigger launch on first use).
+        throw new Error('fetch failed: dev-browser wsEndpoint is empty (browser not ready)');
+      }
+      // Normalize to 127.0.0.1: Chrome may report "localhost" which resolves to ::1 (IPv6)
+      // on macOS Sequoia/Tahoe, causing connectOverCDP to fail with ECONNREFUSED.
+      const normalizedEndpoint = info.wsEndpoint.replace(
+        /^(wss?:\/\/)localhost(:\d+)/,
+        '$1127.0.0.1$2',
+      );
+      return chromium.connectOverCDP(normalizedEndpoint);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (attempt < BROWSER_CONNECT_MAX_ATTEMPTS - 1 && isRecoverableConnectionError(lastError)) {
+        const delayMs = BROWSER_CONNECT_RETRY_BASE_MS * Math.pow(2, attempt);
+        console.error(
+          `[connection] dev-browser server not ready (attempt ${attempt + 1}/${BROWSER_CONNECT_MAX_ATTEMPTS}), retrying in ${delayMs}ms...`,
+        );
+        await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+      } else {
+        break;
+      }
     }
   }
-  throw lastError || new Error('fetchWithRetry failed');
+  throw lastError ?? new Error('Failed to connect to dev-browser server');
 }
 
-async function connectBuiltin(): Promise<Browser> {
-  const res = await fetchWithRetry(config.devBrowserUrl!);
-  if (!res.ok) {
-    throw new Error(`Server returned ${res.status}: ${await res.text()}`);
-  }
-  const info = (await res.json()) as { wsEndpoint: string; mode?: string };
-  browserManager.setCachedServerMode(info.mode || 'normal');
-  const b = await chromium.connectOverCDP(info.wsEndpoint);
-
-  // Playwright's connectOverCDP sends Browser.setDownloadBehavior('allowAndName')
-  // which hijacks downloads to a temp dir with UUID filenames. Since the MCP server
-  // has no page.on('download') handler, this causes downloads to silently disappear.
-  // Reset to Chrome's native behavior so downloads go to the user's Downloads folder.
-  try {
-    const cdpSession = await b.newBrowserCDPSession();
-    await cdpSession.send('Browser.setDownloadBehavior', { behavior: 'default' });
-    await cdpSession.detach();
-  } catch (err) {
-    console.error('[dev-browser-mcp] Failed to reset download behavior:', err);
-  }
-
-  return b;
-}
-
-const DEFAULT_VIEWPORT = { width: 1280, height: 720 };
-
-async function getPageBuiltin(pageName?: string): Promise<Page> {
-  const fullName = getFullPageName(pageName);
-
-  const res = await fetchWithRetry(`${config.devBrowserUrl}/pages`, {
+async function getBuiltinPage(fullName: string): Promise<Page> {
+  const url = `${_config.devBrowserUrl}/pages`;
+  const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: fullName, viewport: DEFAULT_VIEWPORT }),
+    // launchIntent 'background-normal' ensures the page window starts minimized.
+    // The in-app screencast preview is the sole visual surface by default.
+    body: JSON.stringify({ name: fullName, launchIntent: 'background-normal' }),
   });
-
   if (!res.ok) {
-    throw new Error(`Failed to get page: ${await res.text()}`);
+    throw new Error(`Failed to get page "${fullName}": ${res.status}`);
   }
+  const data = (await res.json()) as { wsEndpoint: string; targetId: string };
 
-  const pageInfo = (await res.json()) as { targetId: string; url?: string };
-  const { targetId } = pageInfo;
-
-  const b = await ensureConnected();
-
-  const isExtensionMode = browserManager.getCachedServerMode() === 'extension';
-  if (isExtensionMode) {
-    const allPages = b.contexts().flatMap((ctx) => ctx.pages());
-    if (allPages.length === 0) throw new Error('No pages available in browser');
-    if (allPages.length === 1) return allPages[0]!;
-    if (pageInfo.url) {
-      const matchingPage = allPages.find((p) => p.url() === pageInfo.url);
-      if (matchingPage) return matchingPage;
-    }
-    return allPages[0]!;
-  }
-
-  const page = await findPageByTargetId(b, targetId);
-  if (!page) {
-    throw new Error(`Page "${fullName}" not found in browser contexts`);
-  }
-
-  return page;
-}
-
-async function listPagesBuiltin(): Promise<string[]> {
-  const res = await fetchWithRetry(`${config.devBrowserUrl}/pages`);
-  const data = (await res.json()) as { pages: string[] };
-  const taskPrefix = `${config.taskId}-`;
-  return data.pages
-    .filter((name: string) => name.startsWith(taskPrefix))
-    .map((name: string) => name.substring(taskPrefix.length));
-}
-
-async function closePageBuiltin(pageName: string): Promise<boolean> {
-  const fullName = getFullPageName(pageName);
-  const res = await fetchWithRetry(
-    `${config.devBrowserUrl}/pages/${encodeURIComponent(fullName)}`,
-    {
-      method: 'DELETE',
-    },
-  );
-  return res.ok;
-}
-
-async function findPageByTargetId(b: Browser, targetId: string): Promise<Page | null> {
-  for (const context of b.contexts()) {
-    for (const page of context.pages()) {
-      let cdpSession;
-      try {
-        cdpSession = await context.newCDPSession(page);
-        const { targetInfo } = await cdpSession.send('Target.getTargetInfo');
-        if (targetInfo.targetId === targetId) {
-          return page;
-        }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        if (!msg.includes('Target closed') && !msg.includes('Session closed')) {
-          console.warn(`Unexpected error checking page target: ${msg}`);
-        }
-      } finally {
-        if (cdpSession) {
-          try {
-            await cdpSession.detach();
-          } catch {
-            // intentionally empty
-          }
-        }
-      }
-    }
-  }
-  return null;
-}
-
-// ---------------------------------------------------------------------------
-// Remote mode (new -- connects to any CDP endpoint, manages pages locally)
-// ---------------------------------------------------------------------------
-
-async function connectRemote(): Promise<Browser> {
-  const endpoint = config.cdpEndpoint!;
-  const options: { headers?: Record<string, string> } = {};
-  if (config.cdpHeaders && Object.keys(config.cdpHeaders).length > 0) {
-    options.headers = config.cdpHeaders;
-  }
-  browserManager.setCachedServerMode('remote');
-  return chromium.connectOverCDP(endpoint, options);
-}
-
-async function getPageRemote(pageName?: string): Promise<Page> {
-  const fullName = getFullPageName(pageName);
-
-  // Return existing page from local registry
-  const existing = localPageRegistry.get(fullName);
-  if (existing && !existing.isClosed()) {
-    return existing;
-  }
-
-  // Create new page via Playwright
-  const b = await ensureConnected();
-  const context = b.contexts()[0];
+  const browser = await ensureConnected();
+  const contexts = browser.contexts();
+  const context = contexts[0];
   if (!context) {
     throw new Error('No browser context available');
   }
 
-  const page = await context.newPage();
-  localPageRegistry.set(fullName, page);
-
-  page.on('close', () => {
-    localPageRegistry.delete(fullName);
-  });
-
-  return page;
-}
-
-function listPagesRemote(): Promise<string[]> {
-  const taskPrefix = `${config.taskId}-`;
-  const pages = Array.from(localPageRegistry.keys())
-    .filter((name) => name.startsWith(taskPrefix))
-    .filter((name) => {
-      const page = localPageRegistry.get(name);
-      return page && !page.isClosed();
-    })
-    .map((name) => name.substring(taskPrefix.length));
-  return Promise.resolve(pages);
-}
-
-function closePageRemote(pageName: string): Promise<boolean> {
-  const fullName = getFullPageName(pageName);
-  const page = localPageRegistry.get(fullName);
-  if (!page) return Promise.resolve(false);
-
-  localPageRegistry.delete(fullName);
-  if (!page.isClosed()) {
-    return page.close().then(() => true);
+  const pages = context.pages();
+  // Match by targetId using short-lived CDP sessions.
+  // Do NOT use _cdpSessionCache here — this is a one-shot lookup and the session
+  // is detached immediately after. Caching then detaching would poison the cache
+  // and break all subsequent tool calls for the same page.
+  for (const page of pages) {
+    if (page.isClosed()) {
+      continue;
+    }
+    let session: CDPSession | undefined;
+    try {
+      session = await context.newCDPSession(page);
+      const { targetInfo } = (await session.send('Target.getTargetInfo')) as {
+        targetInfo: { targetId: string };
+      };
+      if (targetInfo.targetId === data.targetId) {
+        return page;
+      }
+    } catch {
+      // try next
+    } finally {
+      if (session) {
+        await session.detach().catch(() => {});
+      }
+    }
   }
-  return Promise.resolve(true);
+  // Target ID was specified but not found - throw error instead of falling back
+  throw new Error(
+    `Page "${fullName}" with targetId "${data.targetId}" not found in browser context`,
+  );
+}
+
+async function getRemotePage(fullName: string): Promise<Page> {
+  const registry = _manager.getLocalPageRegistry();
+  const existing = registry.get(fullName);
+  if (existing && !existing.isClosed()) {
+    return existing;
+  }
+
+  const browser = await ensureConnected();
+  const context = browser.contexts()[0] ?? (await browser.newContext());
+  const page = await context.newPage();
+  registry.set(fullName, page);
+  page.on('close', () => {
+    if (registry.get(fullName) === page) {
+      registry.delete(fullName);
+    }
+  });
+  return page;
 }

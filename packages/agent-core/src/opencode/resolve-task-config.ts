@@ -37,6 +37,8 @@ export interface ResolveTaskConfigOptions {
   /** Permission and question API ports */
   permissionApiPort?: number;
   questionApiPort?: number;
+  /** Port for the WhatsApp HTTP API. Omit to disable the MCP tool. */
+  whatsappApiPort?: number;
 
   /** Optional auth token for daemon API endpoints */
   authToken?: string;
@@ -86,6 +88,7 @@ export async function resolveTaskConfig(
     azureFoundryToken,
     permissionApiPort,
     questionApiPort,
+    whatsappApiPort,
     authToken,
     skills,
     workspaceId,
@@ -124,6 +127,19 @@ export async function resolveTaskConfig(
     }
   }
 
+  // 6. Resolve UI language preference for agent communication
+  /** UI language preference read from app_settings; undefined if the column is absent (pre-migration DB). */
+
+  let language: string | undefined;
+  try {
+    language = storage.getLanguage();
+    if (typeof language === 'string' && language.trim().length === 0) {
+      language = undefined;
+    }
+  } catch (_err) {
+    // Non-critical: language column may be absent in older DBs before migration
+  }
+
   return {
     configOptions: {
       platform,
@@ -136,12 +152,14 @@ export async function resolveTaskConfig(
       enabledProviders,
       permissionApiPort,
       questionApiPort,
+      whatsappApiPort,
       authToken,
       model: modelOverride?.model,
       smallModel: modelOverride?.smallModel,
       connectors: connectors.length > 0 ? connectors : undefined,
       browser,
       knowledgeNotes,
+      language,
     },
   };
 }

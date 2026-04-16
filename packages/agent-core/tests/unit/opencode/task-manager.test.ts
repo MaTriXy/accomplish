@@ -4,11 +4,11 @@ import { OpenCodeCliNotFoundError } from '../../../src/internal/classes/OpenCode
 /**
  * Tests for TaskManager module.
  *
- * Note: The TaskManager depends on OpenCodeAdapter which uses node-pty.
- * We test the TaskManager's business logic through interface verification
- * and state management tests that don't require the full PTY stack.
- *
- * Integration tests in the desktop app provide coverage for the full flow.
+ * Note: The TaskManager depends on OpenCodeAdapter which spawns an
+ * `opencode serve` child and speaks to it via `@opencode-ai/sdk`. We test
+ * TaskManager's business logic through interface verification and state
+ * management tests that don't require the full runtime. Integration tests
+ * in the daemon/desktop provide coverage for the full flow.
  */
 describe('TaskManager', () => {
   beforeEach(() => {
@@ -28,9 +28,6 @@ describe('TaskManager', () => {
           platform: 'darwin' as NodeJS.Platform,
           isPackaged: false,
           tempPath: '/tmp',
-          getCliCommand: () => ({ command: 'opencode', args: [] }),
-          buildEnvironment: async (_taskId: string) => ({}),
-          buildCliArgs: async () => [],
         },
         defaultWorkingDirectory: '/home/user',
         isCliAvailable: async () => true,
@@ -85,10 +82,12 @@ describe('TaskManager', () => {
   });
 
   describe('OpenCodeCliNotFoundError', () => {
-    it('should be thrown when CLI is not available', async () => {
+    it('should be thrown when runtime is not available', async () => {
       const error = new OpenCodeCliNotFoundError();
       expect(error.name).toBe('OpenCodeCliNotFoundError');
-      expect(error.message).toContain('OpenCode CLI is not available');
+      // Message updated in Phase 1b of the SDK cutover port ('CLI' → 'runtime');
+      // the error name is retained so existing error-classification paths still work.
+      expect(error.message).toContain('OpenCode runtime is not available');
     });
   });
 

@@ -5,6 +5,7 @@ import type { Task } from '@accomplish_ai/agent-core/common';
 import { cn } from '@/lib/utils';
 import { X, Star, SpinnerGap } from '@phosphor-icons/react';
 import { useTaskStore } from '@/stores/taskStore';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { STATUS_COLORS, FAVORITABLE_STATUSES, extractDomains } from '@/lib/task-utils';
 import { getFaviconUrl } from '@/components/landing/IntegrationIcons';
 
@@ -20,6 +21,13 @@ export function ConversationListItem({ task }: ConversationListItemProps) {
   const deleteTask = useTaskStore((state) => state.deleteTask);
   const domains = useMemo(() => extractDomains(task), [task]);
   const { favorites, addFavorite, removeFavorite } = useTaskStore();
+  const workspaces = useWorkspaceStore((state) => state.workspaces);
+  const workspaceColor = useMemo(() => {
+    if (!task.workspaceId) {
+      return undefined;
+    }
+    return workspaces.find((w) => w.id === task.workspaceId)?.color;
+  }, [task.workspaceId, workspaces]);
   const favoritesList = Array.isArray(favorites) ? favorites : [];
   const isFavorited = favoritesList.some((f) => f.taskId === task.id);
   const canFavorite = FAVORITABLE_STATUSES.includes(task.status);
@@ -58,6 +66,7 @@ export function ConversationListItem({ task }: ConversationListItemProps) {
         }
       }}
       title={task.summary || task.prompt}
+      style={workspaceColor ? { borderLeft: `2px solid ${workspaceColor}` } : undefined}
       className={cn(
         'w-full text-left p-2 rounded-lg text-xs font-medium transition-colors duration-200',
         'text-foreground hover:bg-accent hover:text-foreground',
@@ -76,28 +85,28 @@ export function ConversationListItem({ task }: ConversationListItemProps) {
       <span className="relative flex items-center shrink-0 h-5">
         {domains.length > 0 && (
           <span className="flex items-center group-hover:opacity-0 transition-opacity duration-200">
-            {domains.map((domain, i) => (
-              <span
-                key={domain}
-                className={cn(
-                  'flex items-center p-0.5 rounded-full bg-card shrink-0 relative',
-                  i > 0 && '-ml-1',
-                  i === 0 && 'z-30',
-                  i === 1 && 'z-20',
-                  i === 2 && 'z-10',
-                )}
-              >
-                <img
-                  src={getFaviconUrl(domain, 16)}
-                  alt={domain}
-                  className="w-3 h-3 rounded-full"
-                  loading="lazy"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
-                />
-              </span>
-            ))}
+            {domains
+              .map((domain) => ({ domain, faviconUrl: getFaviconUrl(domain) }))
+              .filter(({ faviconUrl }) => faviconUrl !== null)
+              .map(({ domain, faviconUrl }, i) => (
+                <span
+                  key={domain}
+                  className={cn(
+                    'flex items-center p-0.5 rounded-full bg-card shrink-0 relative',
+                    i > 0 && '-ml-1',
+                    i === 0 && 'z-30',
+                    i === 1 && 'z-20',
+                    i === 2 && 'z-10',
+                  )}
+                >
+                  <img
+                    src={faviconUrl!}
+                    alt={domain}
+                    className="w-3 h-3 rounded-full"
+                    loading="lazy"
+                  />
+                </span>
+              ))}
           </span>
         )}
         {canFavorite && (

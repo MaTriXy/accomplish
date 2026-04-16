@@ -58,6 +58,8 @@ export interface BuildMcpServersOptions {
   nodeExe: string;
   permissionApiPort: number;
   questionApiPort: number;
+  /** Port for the WhatsApp HTTP API (daemon). Omit to disable the tool. */
+  whatsappApiPort?: number;
   browserConfig: BrowserConfig;
   /** Auth token for daemon HTTP APIs. MCP tools send this as Authorization header. */
   authToken?: string;
@@ -67,6 +69,11 @@ export interface BuildMcpServersOptions {
     url: string;
     accessToken: string;
   }>;
+  /**
+   * Path to GWS accounts manifest JSON. When set, gmail-mcp, calendar-mcp,
+   * and gws-mcp are registered and receive this path via GWS_ACCOUNTS_MANIFEST.
+   */
+  gwsAccountsManifestPath?: string;
 }
 
 /**
@@ -77,11 +84,16 @@ export function buildMcpServers(options: BuildMcpServersOptions): Record<string,
   const {
     mcpToolsPath,
     nodeExe,
-    permissionApiPort,
-    questionApiPort,
+    // permissionApiPort / questionApiPort are retained on the options type
+    // for back-compat with existing call sites (Phase 3 of the SDK cutover
+    // port removed the file-permission and ask-user-question MCP entries).
+    permissionApiPort: _permissionApiPort,
+    questionApiPort: _questionApiPort,
+    whatsappApiPort,
     browserConfig,
     authToken,
     connectors,
+    gwsAccountsManifestPath,
   } = options;
 
   // Auth env for daemon HTTP APIs — MCP tools send this as Authorization header
@@ -95,20 +107,13 @@ export function buildMcpServers(options: BuildMcpServersOptions): Record<string,
       url: OPENCODE_SLACK_MCP_SERVER_URL,
       oauth: { clientId: OPENCODE_SLACK_MCP_CLIENT_ID },
     },
-    'file-permission': {
-      type: 'local',
-      command: resolveMcpCommand(mcpToolsPath, 'file-permission', 'dist/index.mjs', nodeExe),
-      enabled: true,
-      environment: { PERMISSION_API_PORT: String(permissionApiPort), ...authEnv },
-      timeout: 30000,
-    },
-    'ask-user-question': {
-      type: 'local',
-      command: resolveMcpCommand(mcpToolsPath, 'ask-user-question', 'dist/index.mjs', nodeExe),
-      enabled: true,
-      environment: { QUESTION_API_PORT: String(questionApiPort), ...authEnv },
-      timeout: 600000, // 10 minutes — user needs time to read and respond
-    },
+    // Phase 3 of the OpenCode SDK cutover port removed the `file-permission`
+    // and `ask-user-question` MCP entries — their HTTP-callback role was
+    // replaced by the SDK's native `permission.asked` / `question.asked`
+    // events handled inside `OpenCodeAdapter`. The `permissionApiPort` /
+    // `questionApiPort` parameters are retained in this builder's signature
+    // for back-compat with existing call sites; the daemon no longer listens
+    // on those ports.
     'request-connector-auth': {
       type: 'local',
       command: resolveMcpCommand(mcpToolsPath, 'request-connector-auth', 'dist/index.mjs', nodeExe),
@@ -132,10 +137,28 @@ export function buildMcpServers(options: BuildMcpServersOptions): Record<string,
       type: 'local',
       command: resolveMcpCommand(mcpToolsPath, 'desktop-control', 'dist/index.mjs', nodeExe),
       enabled: true,
-      environment: { PERMISSION_API_PORT: String(permissionApiPort), ...authEnv },
+      // Phase 3 of the SDK cutover port removed the daemon's
+      // /permission HTTP listener, so `PERMISSION_API_PORT` no longer points
+      // at anything. If desktop-control needs to route permission prompts
+      // it should do so via the task emitter / RPC chain like any other
+      // tool — not by direct HTTP to a defunct listener.
+      environment: { ...authEnv },
       timeout: 60000,
     },
   };
+
+  if (whatsappApiPort) {
+    mcpServers['whatsapp'] = {
+      type: 'local',
+      command: resolveMcpCommand(mcpToolsPath, 'whatsapp', 'dist/index.mjs', nodeExe),
+      enabled: true,
+      environment: {
+        ACCOMPLISH_WHATSAPP_API_PORT: String(whatsappApiPort),
+        ...authEnv,
+      },
+      timeout: 30000,
+    };
+  }
 
   if (browserConfig.mode !== 'none') {
     const browserEnv: Record<string, string> = {};
@@ -158,6 +181,59 @@ export function buildMcpServers(options: BuildMcpServersOptions): Record<string,
       ...(Object.keys(browserEnv).length > 0 && { environment: browserEnv }),
       timeout: 30000,
     };
+  }
+
+  if (gwsAccountsManifestPath) {
+    const gwsEnv = { GWS_ACCOUNTS_MANIFEST: gwsAccountsManifestPath };
+    try {
+      mcpServers['gmail-mcp'] = {
+        type: 'local',
+        command: resolveMcpCommand(mcpToolsPath, 'gmail-mcp', 'dist/index.mjs', nodeExe),
+        enabled: true,
+        environment: gwsEnv,
+        timeout: 60000,
+      };
+    } catch {
+      // gmail-mcp not available (not yet built or installed)
+    }
+    try {
+      mcpServers['calendar-mcp'] = {
+        type: 'local',
+        command: resolveMcpCommand(mcpToolsPath, 'calendar-mcp', 'dist/index.mjs', nodeExe),
+        enabled: true,
+        environment: gwsEnv,
+        timeout: 60000,
+      };
+    } catch {
+      // calendar-mcp not available
+    }
+    try {
+      mcpServers['gws-mcp'] = {
+        type: 'local',
+        command: resolveMcpCommand(mcpToolsPath, 'gws-mcp', 'dist/index.mjs', nodeExe),
+        enabled: true,
+        environment: gwsEnv,
+        timeout: 60000,
+      };
+    } catch {
+      // gws-mcp not available (requires @googleworkspace/cli)
+    }
+    try {
+      mcpServers['request-google-file-picker'] = {
+        type: 'local',
+        command: resolveMcpCommand(
+          mcpToolsPath,
+          'request-google-file-picker',
+          'dist/index.mjs',
+          nodeExe,
+        ),
+        enabled: true,
+        environment: gwsEnv,
+        timeout: 30000,
+      };
+    } catch {
+      // request-google-file-picker not available
+    }
   }
 
   if (connectors) {

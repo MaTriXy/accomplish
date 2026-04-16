@@ -1,5 +1,8 @@
 /**
  * @vitest-environment jsdom
+ *
+ * Tests the Connectors section of the unified IntegrationsPanel
+ * (previously tested via the now-removed ConnectorsPanel component).
  */
 
 import '@testing-library/jest-dom/vitest';
@@ -36,6 +39,13 @@ const mockAccomplish = {
   setConnectorEnabled: vi.fn(),
   startConnectorOAuth: vi.fn(),
   disconnectConnector: vi.fn(),
+  getBuiltInConnectorAuthStatus: vi.fn().mockResolvedValue([]),
+  loginBuiltInConnector: vi.fn().mockResolvedValue({ ok: true }),
+  logoutBuiltInConnector: vi.fn().mockResolvedValue(undefined),
+  lightdashGetServerUrl: vi.fn().mockResolvedValue(null),
+  lightdashSetServerUrl: vi.fn().mockResolvedValue(undefined),
+  datadogGetServerUrl: vi.fn().mockResolvedValue(null),
+  datadogSetServerUrl: vi.fn().mockResolvedValue(undefined),
 };
 
 vi.mock('@/lib/accomplish', () => ({
@@ -58,9 +68,14 @@ vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-import { ConnectorsPanel } from '@/components/settings/connectors';
+// Mock WhatsAppCard to isolate the Connectors section under test
+vi.mock('@/components/settings/integrations/WhatsAppCard', () => ({
+  WhatsAppCard: () => <div data-testid="whatsapp-card-mock" />,
+}));
 
-describe('ConnectorsPanel', () => {
+import { IntegrationsPanel } from '@/components/settings/integrations';
+
+describe('ConnectorsPanel (via IntegrationsPanel)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockAccomplish.getConnectors.mockResolvedValue([]);
@@ -76,7 +91,7 @@ describe('ConnectorsPanel', () => {
   });
 
   it('renders the built-in Slack auth card', async () => {
-    render(<ConnectorsPanel />);
+    render(<IntegrationsPanel />);
 
     await waitFor(() => {
       expect(screen.getByTestId('slack-auth-card')).toBeInTheDocument();
@@ -91,7 +106,7 @@ describe('ConnectorsPanel', () => {
       .mockResolvedValueOnce({ connected: false, pendingAuthorization: false })
       .mockResolvedValueOnce({ connected: true, pendingAuthorization: false });
 
-    render(<ConnectorsPanel />);
+    render(<IntegrationsPanel />);
 
     await waitFor(() => {
       expect(screen.getByTestId('slack-auth-button')).toBeInTheDocument();

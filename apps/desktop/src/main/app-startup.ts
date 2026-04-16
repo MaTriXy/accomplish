@@ -9,8 +9,6 @@ import { app, BrowserWindow, dialog, ipcMain, nativeImage, nativeTheme } from 'e
 import path from 'path';
 import { FutureSchemaError } from '@accomplish_ai/agent-core';
 import type { ProviderId } from '@accomplish_ai/agent-core';
-// thought-stream-api removed — daemon owns thought/checkpoint streaming.
-// Events forwarded via daemon notification subscription (task.thought, task.checkpoint).
 import { migrateLegacyData } from './store/legacyMigration';
 import { initializeStorage, getStorage } from './store/storage';
 import { getApiKey } from './store/secureStorage';
@@ -26,9 +24,10 @@ import {
 } from './daemon-bootstrap';
 import { registerIPCHandlers } from './ipc/handlers';
 import { drainProtocolUrlQueue } from './protocol-handlers';
-import { getBuildConfig, isAnalyticsEnabled } from './config/build-config';
+import { getBuildConfig, getBuildId, isAnalyticsEnabled } from './config/build-config';
 import { initAnalytics, initDeviceFingerprint } from './analytics/analytics-service';
 import { initMixpanel } from './analytics/mixpanel-service';
+import { trackAppLaunched } from './analytics/events';
 
 function logMain(level: 'INFO' | 'WARN' | 'ERROR', msg: string, data?: Record<string, unknown>) {
   try {
@@ -50,6 +49,10 @@ export async function startApp(
   isQuittingRef: { value: boolean },
 ): Promise<void> {
   logMain('INFO', `[Main] Electron app ready, version: ${app.getVersion()}`);
+
+  // Set build identity for daemon version-guard (used by in-process DaemonServer
+  // and compared against standalone daemon's ping response)
+  process.env.ACCOMPLISH_BUILD_ID = getBuildId();
 
   if (process.env.CLEAN_START !== '1') {
     try {
@@ -146,13 +149,20 @@ export async function startApp(
   }
 
   // Initialize analytics — no-op when build.env is absent (OSS builds)
+  let isFirstLaunch = false;
   try {
     if (isAnalyticsEnabled()) {
-      initAnalytics();
+      const result = initAnalytics();
+      isFirstLaunch = result.isFirstLaunch;
       initDeviceFingerprint();
     }
     if (getBuildConfig().mixpanelToken) {
       initMixpanel();
+    }
+    if (isAnalyticsEnabled()) {
+      trackAppLaunched(isFirstLaunch).catch((err) =>
+        logMain('WARN', '[Main] trackAppLaunched failed', { err: String(err) }),
+      );
     }
   } catch (err) {
     logMain('WARN', '[Main] Analytics initialization failed', { err: String(err) });
@@ -183,21 +193,74 @@ export async function startApp(
       await bootstrapDaemon();
       logMain('INFO', '[Main] Daemon connected');
     } catch (err) {
-      logMain('WARN', '[Main] Daemon bootstrap failed — GUI will open without daemon', {
-        error: String(err),
-      });
+      const { DaemonRestartError } = await import('./daemon/daemon-connector');
+      if (err instanceof DaemonRestartError) {
+        logMain('ERROR', '[Main] Failed to restart daemon after upgrade', {
+          error: String(err),
+        });
+        const { dialog } = await import('electron');
+        dialog.showMessageBox({
+          type: 'warning',
+          title: 'Background Service Update',
+          message:
+            'The background service from a previous version could not be stopped. ' +
+            'Please fully quit the application (check the system tray), wait a few seconds, ' +
+            'and reopen it. If the issue persists, restart your computer.',
+        });
+      } else {
+        logMain('WARN', '[Main] Daemon bootstrap failed — GUI will open without daemon', {
+          error: String(err),
+        });
+      }
     }
   } else {
     logMain('INFO', '[Main] E2E mock mode — skipping daemon bootstrap');
   }
 
-  registerIPCHandlers();
+  // Initialize Google account managers (lazy singletons — safe after initializeStorage())
+  let googleAccountManager: import('./google-accounts/account-manager').AccountManager | undefined;
+  let googleTokenManager: import('./google-accounts/token-manager').TokenManager | undefined;
+  let startGoogleOAuthFn:
+    | typeof import('./google-accounts/google-auth').startGoogleOAuth
+    | undefined;
+  let cancelGoogleOAuthFn:
+    | typeof import('./google-accounts/google-auth').cancelGoogleOAuth
+    | undefined;
+  try {
+    const { getAccountManager, getTokenManager, startGoogleOAuth, cancelGoogleOAuth } =
+      await import('./google-accounts/index');
+    googleAccountManager = getAccountManager();
+    googleTokenManager = getTokenManager();
+    startGoogleOAuthFn = startGoogleOAuth;
+    cancelGoogleOAuthFn = cancelGoogleOAuth;
+  } catch (err) {
+    logMain('WARN', '[Main] Google account managers unavailable', { err: String(err) });
+  }
+  // Register IPC handlers exactly once, after the import attempt settles
+  registerIPCHandlers(
+    googleAccountManager,
+    googleTokenManager,
+    startGoogleOAuthFn,
+    cancelGoogleOAuthFn,
+  );
   logMain('INFO', '[Main] IPC handlers registered');
 
   createWindow();
 
   const mainWindow = getMainWindow();
   if (mainWindow) {
+    // Wire TokenManager window reference and start refresh timers for connected accounts
+    if (googleTokenManager && googleAccountManager) {
+      try {
+        googleTokenManager.setWindow(mainWindow);
+        googleTokenManager.startAllTimers(googleAccountManager.listAccounts());
+        logMain('INFO', '[Main] Google account token refresh timers started');
+      } catch (err) {
+        logMain('WARN', '[Main] Failed to start Google token refresh timers', {
+          err: String(err),
+        });
+      }
+    }
     // Forward daemon notifications to the renderer via IPC.
     // Uses a dynamic getter so recreated windows (macOS activate) receive events.
     registerNotificationForwarding(() => getMainWindow());
@@ -263,6 +326,14 @@ export async function startApp(
     const windows = BrowserWindow.getAllWindows();
     if (windows.length === 0) {
       createWindow();
+      // Rebind TokenManager to the newly created window so background
+      // notifications target the fresh BrowserWindow reference
+      if (googleTokenManager) {
+        const newWindow = getMainWindow();
+        if (newWindow) {
+          googleTokenManager.setWindow(newWindow);
+        }
+      }
       try {
         getLogCollector()?.logEnv?.('INFO', '[Main] Application reactivated; recreated window');
       } catch (_e) {
@@ -271,6 +342,10 @@ export async function startApp(
     } else {
       windows[0].show();
       windows[0].focus();
+      // Ensure TokenManager always holds a reference to the current focused window
+      if (googleTokenManager) {
+        googleTokenManager.setWindow(windows[0]);
+      }
       try {
         getLogCollector()?.logEnv?.(
           'INFO',

@@ -6,7 +6,7 @@
 
 // Import DTOs from common types
 import type { Task, TaskConfig, TaskStatus, TaskMessage, TaskResult } from '../common/types/task';
-import type { PermissionRequest } from '../common/types/permission';
+import type { PermissionRequest, PermissionResponse } from '../common/types/permission';
 import type { TodoItem } from '../common/types/todo';
 import type { OpenCodeMessage } from '../common/types/opencode';
 import type { SandboxConfig, SandboxProvider } from '../common/types/sandbox.js';
@@ -78,7 +78,17 @@ export interface TaskCallbacks {
   }) => void;
 }
 
-/** Adapter options for the underlying CLI adapter */
+/**
+ * Adapter options for the underlying OpenCode runtime adapter.
+ *
+ * Phase 4b of the OpenCode SDK cutover port removed the PTY-era
+ * `getCliCommand`, `buildEnvironment`, and `buildCliArgs` fields. The SDK
+ * adapter no longer spawns an `opencode` CLI per task — `OpenCodeServerManager`
+ * runs `opencode serve` and the SDK talks HTTP. The per-task spawn
+ * environment lives inside the server-manager; the only remaining
+ * pre-task hook is `onBeforeStart`, which the daemon uses to write the
+ * per-task `opencode.json` and sync API keys to `auth.json`.
+ */
 export interface TaskAdapterOptions {
   /** The platform (e.g., 'darwin', 'linux', 'win32') */
   platform: NodeJS.Platform;
@@ -86,16 +96,34 @@ export interface TaskAdapterOptions {
   isPackaged: boolean;
   /** Path to temporary directory */
   tempPath: string;
-  /** Function to get the CLI command and arguments */
-  getCliCommand: () => { command: string; args: string[] };
-  /** Function to build environment variables for a task */
-  buildEnvironment: (taskId: string) => Promise<NodeJS.ProcessEnv>;
-  /** Function to build CLI arguments for a task */
-  buildCliArgs: (config: TaskConfig, taskId: string) => Promise<string[]>;
-  /** Called before the CLI starts. Can return environment variables to be merged. */
+  /**
+   * Optional pre-task hook. Returns environment variables to merge into the
+   * adapter's externalEnv before opening the SDK session — the daemon uses
+   * this to surface `OPENCODE_CONFIG[_DIR]` after writing the per-task
+   * config file.
+   */
   onBeforeStart?: () => Promise<NodeJS.ProcessEnv | void>;
   /** Function to get display name for a model ID */
   getModelDisplayName?: (modelId: string) => string;
+  /**
+   * Resolve the OpenCode server URL for a task runtime.
+   *
+   * Populated by the daemon-side server-manager (Phase 2 of the SDK cutover port).
+   * Consumed by the SDK-based adapter (Phase 1b) when connecting its `createOpencodeClient`.
+   * Optional during Phase 1a — the legacy PTY adapter ignores it; the SDK adapter requires it.
+   *
+   * @param taskId - ID of the task whose runtime server URL is needed
+   * @returns Base URL of the opencode-serve instance hosting this task, or `undefined`
+   *          if no runtime exists for that task.
+   */
+  getServerUrl?: (taskId: string) => Promise<string | undefined>;
+  /**
+   * Optional proxy tagger (Phase 2 of the SDK cutover port). Called by the
+   * adapter on task start (with `taskId`) and teardown (with `undefined`).
+   * Wired by the daemon when an optional runtime module is available.
+   * Undefined in pure OSS builds.
+   */
+  setProxyTaskId?: (taskId: string | undefined) => void;
   /**
    * Lazy sandbox factory, called once per adapter/task instance.
    * Preferred over static sandboxProvider/sandboxConfig — ensures runtime
@@ -155,11 +183,18 @@ export interface TaskManagerAPI {
   cancelQueuedTask(taskId: string): boolean;
 
   /**
-   * Send a response to a waiting task (e.g., permission response)
-   * @param taskId - ID of the task
-   * @param response - Response to send
+   * Send a permission / question response to a waiting task.
+   *
+   * Signature changed in Phase 2 of the SDK cutover port (commercial PR #720):
+   * pre-port this was `(taskId, response: string)` — the PTY adapter wrote the
+   * raw string to stdin. The SDK adapter needs the structured shape so it can
+   * route to either `client.permission.reply` or `client.question.reply`.
+   *
+   * @param taskId   - ID of the task awaiting a reply
+   * @param response - Structured response (requestId + decision + optional
+   *                   `selectedOptions` / `customText` for question payloads)
    */
-  sendResponse(taskId: string, response: string): Promise<void>;
+  sendResponse(taskId: string, response: PermissionResponse): Promise<void>;
 
   /**
    * Get the session ID for a task

@@ -125,7 +125,6 @@ graph TD
 | OpenCode CLI binary          | Agent execution engine | App cannot function without it (bundled) |
 | GitHub OAuth                 | Copilot provider auth  | Use API key-based providers instead      |
 | better-sqlite3 native module | Local database         | None — required for app operation        |
-| node-pty native module       | PTY for OpenCode CLI   | None — required for task execution       |
 
 ---
 
@@ -136,15 +135,15 @@ graph TD
 
 #### 3.2.1 Functional Elements
 
-| Element              | Responsibility                                                                  | Workspace                           | Key Files                                  |
-| -------------------- | ------------------------------------------------------------------------------- | ----------------------------------- | ------------------------------------------ |
-| **Web UI**           | React frontend — task launcher, execution view, settings, history               | `apps/web`                          | `stores/taskStore.ts`, `lib/accomplish.ts` |
-| **Desktop Shell**    | Electron main process — IPC handlers, preload, tray, daemon bootstrap           | `apps/desktop`                      | `ipc/handlers/`, `preload/index.ts`        |
-| **Agent Core**       | Business logic — storage, providers, encryption, task manager, OpenCode adapter | `packages/agent-core`               | `factories/`, `internal/classes/`          |
-| **Daemon** (in-dev)  | Background process — task execution, storage access, event streaming            | `apps/daemon`                       | `task-service.ts`, `storage-service.ts`    |
-| **Provider Layer**   | LLM provider abstraction — validation, model fetching, config                   | `packages/agent-core/src/providers` | Per-provider modules                       |
-| **Storage Layer**    | SQLite database — migrations, repositories, secure storage                      | `packages/agent-core/src/storage`   | `database.ts`, `migrations/`               |
-| **OpenCode Adapter** | Spawns OpenCode CLI via PTY, parses streaming output, emits events              | `packages/agent-core/src/internal`  | `OpenCodeAdapter.ts`, `StreamParser`       |
+| Element              | Responsibility                                                                            | Workspace                           | Key Files                                         |
+| -------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------- | ------------------------------------------------- |
+| **Web UI**           | React frontend — task launcher, execution view, settings, history                         | `apps/web`                          | `stores/taskStore.ts`, `lib/accomplish.ts`        |
+| **Desktop Shell**    | Electron main process — IPC handlers, preload, tray, daemon bootstrap                     | `apps/desktop`                      | `ipc/handlers/`, `preload/index.ts`               |
+| **Agent Core**       | Business logic — storage, providers, encryption, task manager, OpenCode adapter           | `packages/agent-core`               | `factories/`, `internal/classes/`                 |
+| **Daemon** (in-dev)  | Background process — task execution, storage access, event streaming                      | `apps/daemon`                       | `task-service.ts`, `storage-service.ts`           |
+| **Provider Layer**   | LLM provider abstraction — validation, model fetching, config                             | `packages/agent-core/src/providers` | Per-provider modules                              |
+| **Storage Layer**    | SQLite database — migrations, repositories, secure storage                                | `packages/agent-core/src/storage`   | `database.ts`, `migrations/`                      |
+| **OpenCode Adapter** | Spawns `opencode serve` and drives it via `@opencode-ai/sdk`, forwarding typed SDK events | `packages/agent-core/src/internal`  | `OpenCodeAdapter.ts`, `TaskInactivityWatchdog.ts` |
 
 #### 3.2.2 Element Interactions
 
@@ -408,7 +407,7 @@ graph LR
 
 | Environment           | Purpose              | Infrastructure                          | Notes                                                 |
 | --------------------- | -------------------- | --------------------------------------- | ----------------------------------------------------- |
-| Production (packaged) | End-user desktop app | Electron 41 + bundled Node.js 20.18.1   | DMG/ZIP (macOS), NSIS (Windows), AppImage/deb (Linux) |
+| Production (packaged) | End-user desktop app | Electron 41 + bundled Node.js 22.22.2   | DMG/ZIP (macOS), NSIS (Windows), AppImage/deb (Linux) |
 | Development           | Local dev            | Vite dev server (:5173) + Electron      | Hot reload on web, manual restart for main process    |
 | CI/Testing            | Automated tests      | GitHub Actions (Ubuntu, macOS, Windows) | Docker for E2E tests                                  |
 
@@ -418,7 +417,7 @@ graph LR
 graph TB
     subgraph "User's Machine"
         subgraph "Electron App (packaged)"
-            MainProcess["Main Process<br/>(Node.js 20)"]
+            MainProcess["Main Process<br/>(Node.js 22)"]
             PreloadScript["Preload Script<br/>(contextBridge)"]
             RendererProcess["Renderer Process<br/>(Chromium)"]
 
@@ -426,7 +425,7 @@ graph TB
                 WebBuild["Web UI Build<br/>(static HTML/JS/CSS)"]
                 OpenCodeBin["OpenCode CLI<br/>(platform binary)"]
                 MCPTools["MCP Tools<br/>(bundled)"]
-                BundledNode["Node.js 20.18.1<br/>(bundled runtime)"]
+                BundledNode["Node.js 22.22.2<br/>(bundled runtime)"]
             end
         end
 
@@ -471,11 +470,11 @@ graph TB
 | Linux (x64)   | AppImage + deb | N/A                            | GitHub Releases |
 | Windows       | NSIS installer | Per-user, one-click            | GitHub Releases |
 
-**Native Module Handling**: `better-sqlite3` and `node-pty` require platform-specific
+**Native Module Handling**: `better-sqlite3` requires platform-specific
 compilation. Electron-rebuild runs during install. ASAR packaging selectively unpacks
-these native modules to ensure runtime compatibility.
+this native module to ensure runtime compatibility.
 
-**Bundled Node.js**: The packaged app ships Node.js v20.18.1. When spawning OpenCode CLI,
+**Bundled Node.js**: The packaged app ships Node.js v22.22.2. When spawning OpenCode CLI,
 `bundledPaths.binDir` is prepended to `PATH` (Constitution Principle VII) to ensure the
 bundled runtime is used on machines without system Node.js.
 
@@ -546,8 +545,8 @@ scaling does not apply. Scaling concerns are:
 
 - **Desktop-only**: Must run as packaged Electron app on macOS, Windows, Linux
 - **Local-first**: No cloud backend; all data stored on user's machine
-- **Bundled Node.js**: Packaged app ships Node.js 20.18.1; cannot rely on system Node.js
-- **Native modules**: `better-sqlite3` and `node-pty` require platform-specific compilation
+- **Bundled Node.js**: Packaged app ships Node.js 22.22.2; cannot rely on system Node.js
+- **Native modules**: `better-sqlite3` requires platform-specific compilation
 - **ESM in agent-core**: `"type": "module"` — all imports require `.js` extensions
 - **Browser bundle safety**: `apps/web` must not import Node.js-only modules from agent-core
 
@@ -637,12 +636,12 @@ Detailed Architecture Decision Records are maintained in
 ### C. Tech Stack Summary
 
 **Language**: TypeScript 5.7 (strict mode)
-**Runtime**: Node.js 20+ (bundled 20.18.1)
+**Runtime**: Node.js 22+ (bundled 22.22.2)
 **Desktop**: Electron 41 + electron-builder 25
 **Frontend**: React 19, React Router 7, Zustand 5
 **UI**: Radix UI + shadcn/ui, Tailwind CSS, Framer Motion, DM Sans
 **Database**: SQLite via better-sqlite3 (synchronous, no ORM)
-**Agent Engine**: OpenCode CLI (spawned via node-pty)
+**Agent Engine**: `opencode serve` subprocess driven via `@opencode-ai/sdk` (daemon-owned)
 **Encryption**: AES-256-GCM with PBKDF2 machine-derived key
 **Build**: Vite 8 (web/desktop), tsup (daemon), tsc (agent-core)
 **Package Manager**: pnpm 9.15 with workspace catalogs
