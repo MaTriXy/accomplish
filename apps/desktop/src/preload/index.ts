@@ -23,7 +23,7 @@ import type {
   KnowledgeNote,
   KnowledgeNoteCreateInput,
   KnowledgeNoteUpdateInput,
-} from '@accomplish_ai/agent-core';
+} from '@accomplish_ai/agent-core/desktop-main';
 import type {
   CloudBrowserConfig,
   GoogleAccount,
@@ -970,6 +970,18 @@ const accomplishAPI = {
       const listener = (_: unknown, id: string, status: string) => callback(id, status);
       ipcRenderer.on('gws:account:status-changed', listener);
       return () => ipcRenderer.removeListener('gws:account:status-changed', listener);
+    },
+    /**
+     * Subscribe to Google OAuth failure events. The handler fires when the
+     * background callback consumer can't register the account — missing
+     * refresh token (see M5 review finding P2.3), label collision, daemon
+     * storage failure, etc. Silent paths (timeout, user cancel) are not
+     * forwarded on this channel.
+     */
+    onAuthError: (callback: (payload: { message: string }) => void): (() => void) => {
+      const listener = (_: unknown, payload: { message: string }) => callback(payload);
+      ipcRenderer.on('gws:account:auth-error', listener);
+      return () => ipcRenderer.removeListener('gws:account:auth-error', listener);
     },
   },
 

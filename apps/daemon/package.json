@@ -5,7 +5,7 @@
   "description": "Accomplish background daemon process",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && node scripts/write-dist-package-type.cjs",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@accomplish_ai/agent-core": "workspace:*",
-    "@opencode-ai/sdk": "1.2.24",
+    "@opencode-ai/sdk": "1.14.18",
     "@whiskeysockets/baileys": "7.0.0-rc.9",
     "better-sqlite3": "^12.6.2",
     "pino": "^9.6.0",
@@ -25,7 +25,7 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "^22.15.0",
+    "@types/node": "^24.0.0",
     "tsup": "^8.3.5",
     "tsx": "^4.19.0",
     "typescript": "^6.0.2",

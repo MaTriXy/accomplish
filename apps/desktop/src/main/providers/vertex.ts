@@ -1,6 +1,9 @@
 import { execFile } from 'child_process';
-import { validateVertexCredentials, fetchVertexModels } from '@accomplish_ai/agent-core';
-import type { VertexCredentials } from '@accomplish_ai/agent-core';
+import {
+  validateVertexCredentials,
+  fetchVertexModels,
+} from '@accomplish_ai/agent-core/desktop-main';
+import type { VertexCredentials } from '@accomplish_ai/agent-core/desktop-main';
 import { storeApiKey, getApiKey } from '../store/secureStorage';
 import { getLogCollector } from '../logging';
 import { normalizeIpcError } from '../ipc/validation';
@@ -69,7 +72,7 @@ export function registerVertexHandlers(handle: IpcHandler): void {
       }
     }
 
-    storeApiKey('vertex', credentials);
+    await storeApiKey('vertex', credentials);
 
     const label =
       parsed.authType === 'serviceAccount' ? 'Service Account' : 'Application Default Credentials';
@@ -86,8 +89,10 @@ export function registerVertexHandlers(handle: IpcHandler): void {
   });
 
   handle('vertex:get-credentials', async (_event: IpcMainInvokeEvent) => {
-    const stored = getApiKey('vertex');
-    if (!stored) return null;
+    const stored = await getApiKey('vertex');
+    if (!stored) {
+      return null;
+    }
     try {
       return JSON.parse(stored);
     } catch {

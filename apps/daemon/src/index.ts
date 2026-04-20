@@ -22,6 +22,21 @@ import { registerTaskEventForwarding } from './task-event-forwarding.js';
 import { WhatsAppDaemonService } from './whatsapp-service.js';
 import { WhatsAppSendApi } from './whatsapp/whatsapp-send-api.js';
 import { OpenAiOauthManager } from './opencode/auth-openai.js';
+// Milestone 2 of the daemon-only-SQLite migration — these four services
+// expose the daemon's storage surface over RPC so main can progressively
+// stop opening the DB itself. They're purely additive in M2; desktop doesn't
+// consume them yet.
+import { SecretsService } from './secrets-service.js';
+import { SettingsService } from './settings-service.js';
+import { WorkspaceService } from './workspace-service.js';
+import { ConnectorService } from './connector-service.js';
+import { LegacyImportService } from './legacy-import-service.js';
+// Milestone 4 of the daemon-only-SQLite migration — daemon takes over
+// ownership of Google accounts (CRUD + token refresh) and skills (CRUD +
+// disk scan). Main keeps the Electron-only parts (OAuth loopback +
+// `shell.open*`) and calls these services over RPC.
+import { GoogleAccountService } from './google-account-service.js';
+import { SkillsService } from './skills-service.js';
 import { log } from './logger.js';
 
 // __dirname is available natively in CJS (the daemon is built as CJS by tsup)
@@ -194,6 +209,51 @@ async function main(): Promise<void> {
   // back via 'permission.respond' RPC → taskService.sendResponse → SDK reply.
   // The /permission and /question HTTP endpoints are gone with the service.
 
+  // Milestone 2: storage-surface services. Thin wrappers over StorageAPI
+  // (plus, in the legacy importer's case, the raw `better-sqlite3` handle)
+  // that expose typed RPC endpoints. Nothing in main consumes these yet —
+  // Milestones 3 and 5 repoint desktop callers onto them.
+  const secretsService = new SecretsService(storage);
+  const settingsService = new SettingsService(storage);
+  const workspaceService = new WorkspaceService();
+  const connectorService = new ConnectorService(storage);
+  const legacyImportService = new LegacyImportService(storageService.getRawDatabase());
+
+  // Milestone 4 services — own Google accounts + skills.
+  const googleAccountService = new GoogleAccountService(storageService.getRawDatabase(), storage);
+  // Bundled-skills location mirrors the desktop pre-M4 path. In packaged
+  // builds Electron passes `--resources-path`; in dev we fall back to the
+  // repo root so `pnpm dev` still finds the bundled skills directory.
+  const bundledSkillsPath = isPackaged
+    ? path.join(resourcesPath, 'bundled-skills')
+    : appPath
+      ? path.join(appPath, 'bundled-skills')
+      : path.resolve(__dirname, '..', '..', '..', 'bundled-skills');
+  const skillsService = new SkillsService({
+    dataDir: userDataPath,
+    bundledSkillsPath,
+  });
+
+  // Ensure the default workspace exists and the active-workspace pointer is
+  // valid BEFORE registering any workspace RPCs. Ports the bootstrap from
+  // desktop's `workspaceManager.initialize()`; migrations only create the
+  // tables, so without this a fresh profile would answer `workspace.list`
+  // with `[]` and `workspace.getActive` with `null`. Idempotent.
+  workspaceService.ensureInitialized();
+
+  // Milestone 4 — initialize SkillsService (reads bundled + user skill
+  // directories from disk, reconciles with the DB) and restart Google
+  // account refresh timers for every previously-connected account. Both
+  // are crash-safe: idempotent and tolerant of partial / corrupted state.
+  try {
+    await skillsService.initialize();
+  } catch (err) {
+    log.warn(
+      `[Daemon] SkillsService initialize failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+  googleAccountService.startAllTimers();
+
   // Register RPC methods and task event forwarding
   const routeServices = {
     rpc,
@@ -204,14 +264,21 @@ async function main(): Promise<void> {
     accomplishRuntime,
     whatsappService,
     openAiOauthManager,
+    secretsService,
+    settingsService,
+    workspaceService,
+    connectorService,
+    legacyImportService,
+    googleAccountService,
+    skillsService,
   };
   registerRpcMethods(routeServices);
   registerTaskEventForwarding(routeServices);
 
   // Start remaining HTTP / RPC services on well-known ports.
-  // PERMISSION_API_PORT (9226) and QUESTION_API_PORT (9227) are no longer
-  // listened on — their MCP shims (file-permission, ask-user-question) were
-  // replaced by native SDK events in Phase 2.
+  // The two HTTP listeners that ran on pre-cutover permission/question ports
+  // were removed in Phase 3 of the SDK cutover port — their MCP shims
+  // (file-permission, ask-user-question) were replaced by native SDK events.
   // THOUGHT_STREAM_PORT (9228) was removed with the rest of the unused
   // thought-stream reporting pipeline (report-thought / report-checkpoint
   // MCP tools were never registered in the opencode config, so the HTTP

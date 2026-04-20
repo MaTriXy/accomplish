@@ -160,6 +160,9 @@ export type {
   ConnectorCustomOAuthDefinition,
   ConnectorDesktopOAuthDefinition,
   ConnectorDefinition,
+  // M2 review polish: keep the built-in connector auth-store blob
+  // reachable from the same pure-types subpath as its siblings.
+  StoredAuthEntry,
   ConnectorAuthStatus,
 } from './common/types/connector.js';
 
@@ -193,23 +196,6 @@ export type {
 // Scheduler types
 export type { ScheduledTask } from './common/types/daemon.js';
 
-// Desktop control types
-export type {
-  DesktopActionType,
-  DesktopActionRequest,
-  DesktopActionResult,
-  BlocklistEntry,
-  DesktopControlConfig,
-  DesktopPermissionRequestData,
-  WindowInfo,
-  ScreenshotResult,
-  ScrollDirection,
-  MouseButton,
-  ServeOptions as DesktopServeOptions,
-  DesktopControlServer,
-} from './common/types/desktop.js';
-export { DESKTOP_ACTION_TYPES } from './common/types/desktop.js';
-
 // Other types
 export type { TodoItem } from './common/types/todo.js';
 export type { LogLevel, LogSource, LogEntry } from './common/types/logging.js';
@@ -241,8 +227,6 @@ export { DEFAULT_PRIVACY_CONFIG, RECORDING_SCHEMA_VERSION } from './common/types
 export {
   DEV_BROWSER_PORT,
   DEV_BROWSER_CDP_PORT,
-  PERMISSION_API_PORT,
-  QUESTION_API_PORT,
   PERMISSION_REQUEST_TIMEOUT_MS,
   CONNECTOR_AUTH_REQUIRED_MARKER,
   LOG_MAX_FILE_SIZE_BYTES,

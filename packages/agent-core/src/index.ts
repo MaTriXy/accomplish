@@ -38,6 +38,7 @@ export type {
   TaskCallbacks as TaskManagerCallbacks,
   TaskProgressEvent as TaskManagerProgressEvent,
   OnBeforeStartContext,
+  OnBeforeStartResult,
   // Storage API
   StorageAPI,
   StorageOptions,
@@ -220,13 +221,10 @@ export type {
 // Errors
 export { FutureSchemaError } from './storage/migrations/errors.js';
 
-// Workspace meta database
-export {
-  initializeMetaDatabase,
-  getMetaDatabase,
-  closeMetaDatabase,
-  isMetaDatabaseInitialized,
-} from './storage/workspace-meta-db.js';
+// Legacy workspace-meta.db cleanup helper. The tables themselves now live
+// in the main `accomplish.db` per v030; this helper deletes the retired
+// file after verified import.
+export { deleteLegacyWorkspaceMetaFiles } from './storage/delete-legacy-workspace-meta.js';
 
 // Workspace repository
 export {
@@ -523,6 +521,7 @@ export type {
   OAuthMetadata,
   OAuthClientRegistration,
   McpConnector,
+  StoredAuthEntry,
 } from './common/types/connector.js';
 
 // MCP OAuth
@@ -560,8 +559,6 @@ export { DockerSandboxProvider } from './sandbox/docker-provider.js';
 export {
   DEV_BROWSER_PORT,
   DEV_BROWSER_CDP_PORT,
-  PERMISSION_API_PORT,
-  QUESTION_API_PORT,
   WHATSAPP_API_PORT,
   PERMISSION_REQUEST_TIMEOUT_MS,
   CONNECTOR_AUTH_REQUIRED_MARKER,
@@ -645,7 +642,37 @@ export type {
   ScheduledTask,
   TaskScheduleParams,
   TaskCancelScheduledParams,
+  // Milestone 2 of the daemon-only-SQLite migration — storage-surface
+  // payload types. Both daemon services and the M3 renderer subscriptions
+  // pull these from the same common module.
+  SettingsSnapshot,
+  SettingsChangePayload,
+  WorkspaceChangePayload,
+  WorkspaceSetActiveResult,
+  WorkspaceDeleteResult,
+  LegacyImportResult,
+  LegacyImportPaths,
+  // Milestone 4 — daemon-owned Google accounts + skills payloads.
+  GwsAccountAddInput,
+  GwsAccountTokenResult,
+  GwsAccountStatusChangedPayload,
+  SkillsChangedPayload,
 } from './common/types/daemon.js';
+
+// Milestone 4 — daemon services import these directly from the root for
+// DB-layer typings (`GoogleAccount` is read/written via SQL in
+// `GoogleAccountService`). They already live in the common tree.
+export type {
+  GoogleAccount,
+  GoogleAccountStatus,
+  GoogleAccountToken,
+  GwsAccountsContext,
+} from './common/types/google-account.js';
+
+// `LanguagePreference` lives in the storage-types module next to
+// `AppSettings`; re-exporting it here keeps the daemon's SettingsService able
+// to name its parameter types without a deep import.
+export type { LanguagePreference } from './types/storage.js';
 
 // Browser live-view types (ENG-695)
 export type {

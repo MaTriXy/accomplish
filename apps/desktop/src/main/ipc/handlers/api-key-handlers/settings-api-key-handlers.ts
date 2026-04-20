@@ -1,31 +1,36 @@
 import type { IpcMainInvokeEvent } from 'electron';
-import { sanitizeString } from '@accomplish_ai/agent-core';
-import { ALLOWED_API_KEY_PROVIDERS } from '@accomplish_ai/agent-core';
+import { sanitizeString } from '@accomplish_ai/agent-core/desktop-main';
+import { ALLOWED_API_KEY_PROVIDERS } from '@accomplish_ai/agent-core/desktop-main';
 import {
   storeApiKey,
   deleteApiKey,
   getAllApiKeys,
   getBedrockCredentials,
 } from '../../../store/secureStorage';
-import { getStorage } from '../../../store/storage';
+import { getDaemonClient } from '../../../daemon-bootstrap';
 import { handle } from '../utils';
 
 // Cloud-browser providers store their keys in app_settings.cloud_browser_config,
 // not in secure storage. Exclude them from the standard api-key flow.
 const CLOUD_BROWSER_PROVIDERS = new Set(['aws-agentcore', 'browserbase', 'steel']);
 
+// Milestone 5: Azure Foundry config reads/writes for the
+// api-keys settings listing now route through the daemon's
+// `settings.*AzureFoundryConfig` RPCs.
 export function registerSettingsApiKeyHandlers(): void {
-  const storage = getStorage();
-
   handle('settings:api-keys', async (_event: IpcMainInvokeEvent) => {
     const storedKeys = await getAllApiKeys();
+    // Pre-fetch bedrock credentials ONCE. `getBedrockCredentials` is async
+    // post-M3 (RPC round-trip), and we can't await inside `Array.map` without
+    // reshaping the whole pipeline to `Promise.all`. Bedrock appears at most
+    // once in the map, so a single fetch is both correct and cheaper.
+    const bedrockCreds = storedKeys['bedrock'] ? await getBedrockCredentials() : null;
 
     const keys = Object.entries(storedKeys)
       .filter(([_provider, apiKey]) => apiKey !== null)
       .map(([provider, apiKey]) => {
         let keyPrefix = '';
         if (provider === 'bedrock') {
-          const bedrockCreds = getBedrockCredentials();
           if (bedrockCreds) {
             if (bedrockCreds.authType === 'accessKeys') {
               keyPrefix = `${bedrockCreds.accessKeyId?.substring(0, 8) || 'AKIA'}...`;
@@ -55,7 +60,6 @@ export function registerSettingsApiKeyHandlers(): void {
         // Derive label to match bedrock:save / vertex:save output exactly
         let label: string;
         if (provider === 'bedrock') {
-          const bedrockCreds = getBedrockCredentials();
           if (bedrockCreds?.authType === 'accessKeys') {
             label = 'AWS Access Keys';
           } else if (bedrockCreds?.authType === 'profile') {
@@ -89,7 +93,7 @@ export function registerSettingsApiKeyHandlers(): void {
         };
       });
 
-    const azureConfig = storage.getAzureFoundryConfig();
+    const azureConfig = await getDaemonClient().call('settings.getAzureFoundryConfig');
     const hasAzureKey = keys.some((k) => k.provider === 'azure-foundry');
 
     if (azureConfig && azureConfig.authType === 'entra-id' && !hasAzureKey) {
@@ -148,10 +152,13 @@ export function registerSettingsApiKeyHandlers(): void {
     // are not stored in secure storage — routing them to deleteApiKey() would be a no-op
     // and the entry would reappear on next load. Instead, update the backing config.
     if (provider === 'azure-foundry') {
-      const existingConfig = storage.getAzureFoundryConfig();
+      const client = getDaemonClient();
+      const existingConfig = await client.call('settings.getAzureFoundryConfig');
       if (existingConfig) {
         // Disable Entra ID auth by clearing the config entry
-        storage.setAzureFoundryConfig({ ...existingConfig, enabled: false, authType: 'api-key' });
+        await client.call('settings.setAzureFoundryConfig', {
+          config: { ...existingConfig, enabled: false, authType: 'api-key' },
+        });
       }
       return;
     }

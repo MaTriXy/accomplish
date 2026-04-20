@@ -26,6 +26,53 @@ import type {
 import { BASE_PROVIDERS, getBrowserBehaviorInstructions } from './config-generator-types.js';
 
 const log = createConsoleLogger({ prefix: 'OpenCodeConfig' });
+const DEFAULT_CONFIG_FILE_NAME = 'opencode.json';
+const BASH_PERMISSION_POLICY = {
+  '*': 'allow',
+  '* > *': 'ask',
+  '* >> *': 'ask',
+  '* 2> *': 'ask',
+  '* | tee *': 'ask',
+  '* && tee *': 'ask',
+  'tee *': 'ask',
+  'cat > *': 'ask',
+  'rm *': 'ask',
+  'mv *': 'ask',
+  'cp *': 'ask',
+  'mkdir *': 'ask',
+  'touch *': 'ask',
+  'chmod *': 'ask',
+  'chown *': 'ask',
+  'ln *': 'ask',
+  'install *': 'ask',
+  'truncate *': 'ask',
+  'sed -i*': 'ask',
+  'python*': 'ask',
+  'node *': 'ask',
+  'ruby *': 'ask',
+  'perl *': 'ask',
+  'sh *': 'ask',
+  'bash *': 'ask',
+  'zsh *': 'ask',
+  'osascript *': 'ask',
+  'curl * -o *': 'ask',
+  'curl * --output *': 'ask',
+  'wget *': 'ask',
+  'tar *x*': 'ask',
+  'unzip *': 'ask',
+  'rsync *': 'ask',
+} as const;
+const ACCOMPLISH_PERMISSION_POLICY = {
+  bash: BASH_PERMISSION_POLICY,
+  edit: 'ask',
+  write: 'ask',
+  patch: 'ask',
+  multiedit: 'ask',
+  modify: 'ask',
+  delete: 'ask',
+  question: 'allow',
+  todowrite: 'allow',
+} as const;
 
 // LANGUAGE_DISPLAY_NAMES uses keys matching LanguagePreference (BCP-47/ISO 639-1, e.g., 'zh-CN', 'ru', 'fr').
 // This list is intentionally minimal and only includes supported UI languages.
@@ -61,6 +108,36 @@ function getLanguageInstruction(language: string | undefined): string {
 
 export const ACCOMPLISH_AGENT_NAME = 'accomplish';
 
+function syncPermissionPolicyIntoDefaultConfig(configDir: string, activeConfigPath: string): void {
+  const defaultConfigPath = path.join(configDir, DEFAULT_CONFIG_FILE_NAME);
+  if (path.resolve(defaultConfigPath) === path.resolve(activeConfigPath)) {
+    return;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(fs.readFileSync(defaultConfigPath, 'utf8'));
+  } catch {
+    return;
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
+    return;
+  }
+
+  const maybeConfig = parsed as { permission?: unknown };
+  if (!maybeConfig.permission || typeof maybeConfig.permission !== 'object') {
+    maybeConfig.permission = { ...ACCOMPLISH_PERMISSION_POLICY };
+  } else {
+    const permission = maybeConfig.permission as Record<string, unknown>;
+    delete permission['*'];
+    Object.assign(permission, ACCOMPLISH_PERMISSION_POLICY);
+  }
+
+  fs.writeFileSync(defaultConfigPath, JSON.stringify(parsed, null, 2));
+  log.info(`[OpenCode Config] Synced permission policy into: ${defaultConfigPath}`);
+}
+
 export function generateConfig(options: ConfigGeneratorOptions): GeneratedConfig {
   const {
     platform,
@@ -68,8 +145,6 @@ export function generateConfig(options: ConfigGeneratorOptions): GeneratedConfig
     skills = [],
     bundledNodeBinPath,
     providerConfigs = [],
-    permissionApiPort = 9226,
-    questionApiPort = 9227,
     whatsappApiPort,
     userDataPath,
     model,
@@ -168,24 +243,68 @@ ${accountRows}
     systemPrompt += gwsSection;
   }
 
-  if (options.knowledgeNotes) {
-    const knowledgeSection = `
+  // Two distinct injection blocks with distinct binding strength, per the
+  // PR #847 review (Codex P2): `instruction`-type notes MUST be treated as
+  // mandatory persistent rules that override the default conversational-
+  // bypass concise-by-default behavior, while `context`/`reference` notes
+  // stay as soft workspace background.
+  //
+  // POSITIONING: the instructions block is PREPENDED to the top of the
+  // prompt (before the base template's conversational-bypass and response-
+  // style rules). Appending to the end put it at 94% of an 18KB prompt,
+  // where model attention is weakest — the early rules dominated and
+  // instructions were ignored. Putting it first gives user instructions
+  // primacy over the default behavior rules they're meant to override.
+  // Soft context stays appended (end of prompt) since it's background info,
+  // not a rule.
+  if (options.knowledgeInstructions) {
+    const instructionsBlock = `<workspace-instructions>
+##############################################################################
+# MANDATORY WORKSPACE INSTRUCTIONS — MUST BE FOLLOWED
+##############################################################################
+
+The user has saved the following instructions for THIS SPECIFIC WORKSPACE.
+These are PERSISTENT USER INSTRUCTIONS that apply to EVERY response in
+this workspace, including:
+- Short conversational replies — these instructions OVERRIDE the default
+  "concise by default" / "1-3 sentences" / conversational-bypass rules
+  described later in this prompt.
+- Direct answers to simple questions.
+- Task workflow responses.
+- Tool-using multi-step tasks.
+
+Follow each instruction below LITERALLY, on EVERY response, for the
+duration of this workspace session. When two instructions conflict,
+prefer the most recently added one. These instructions take precedence
+over any response-style defaults in the rest of this prompt, except
+where they would conflict with a higher-priority safety or system rule.
+
+${options.knowledgeInstructions}
+
+##############################################################################
+</workspace-instructions>
+
+`;
+    systemPrompt = instructionsBlock + systemPrompt;
+  }
+
+  if (options.knowledgeContext) {
+    systemPrompt += `
 
 <workspace-knowledge>
 ##############################################################################
 # WORKSPACE KNOWLEDGE - Persistent context for this workspace
 ##############################################################################
 
-The user has saved the following knowledge notes for this workspace.
-Use this information as context for all tasks. Do not ask the user to
+The user has saved the following background context for this workspace.
+Use this information to inform your work. Do not ask the user to
 re-explain anything covered here.
 
-${options.knowledgeNotes}
+${options.knowledgeContext}
 
 ##############################################################################
 </workspace-knowledge>
 `;
-    systemPrompt += knowledgeSection;
   }
 
   if (options.builtInConnectorStatuses && options.builtInConnectorStatuses.length > 0) {
@@ -208,8 +327,6 @@ ${options.knowledgeNotes}
   const mcpServers = buildMcpServers({
     mcpToolsPath,
     nodeExe,
-    permissionApiPort,
-    questionApiPort,
     whatsappApiPort,
     browserConfig,
     authToken: options.authToken,
@@ -247,7 +364,33 @@ ${options.knowledgeNotes}
     ...(smallModel && { small_model: smallModel }),
     default_agent: ACCOMPLISH_AGENT_NAME,
     enabled_providers: enabledProviders,
-    permission: { '*': 'allow', todowrite: 'allow' },
+    // Permission policy: leave OpenCode's built-in defaults in charge of
+    // normal non-mutating tools, and only add overrides for risky native file
+    // writes, external-directory access, questions, and noisy bookkeeping.
+    // Do not add a top-level `'*': 'allow'` here: it overrides OpenCode's
+    // built-in `external_directory: ask` rule, which is the guard that catches
+    // writes like `~/Desktop/kuku.txt` even when the bash permission pattern
+    // itself is just `printf ...`. Bash's nested object keeps harmless commands
+    // like `date` quiet while redirection, mutators, and arbitrary interpreters
+    // pause for approval. `question` must be allowed so OpenCode can emit
+    // `question.asked` and surface the renderer's QuestionCard; OpenCode's
+    // built-in default denies it. `todowrite` is called by every agent turn to
+    // update the task-plan TODO list and prompting on it would drown the user
+    // in noise. Risky tools route via:
+    //
+    //   OpenCode → `permission.asked` → daemon.TaskCallbacks
+    //     → `permission.request` RPC notify → main process
+    //     → preload → renderer (PermissionCard UI)
+    //     → renderer decision → `permission.respond` RPC
+    //     → daemon.TaskService.sendResponse → SDK reply
+    //
+    // Earlier versions here had `{ '*': 'allow', todowrite: 'allow' }`, or a
+    // top-level wildcard plus native-file asks. Both silently auto-authorized
+    // external-directory file writes. Another version used `{ '*': 'ask', ... }`,
+    // which prompted for everything including browser and webfetch actions.
+    // Keep this policy narrow; see
+    // `config-generator.test.ts` for the guard.
+    permission: { ...ACCOMPLISH_PERMISSION_POLICY },
     provider: Object.keys(providerConfig).length > 0 ? providerConfig : undefined,
     plugin: ['@tarquinen/opencode-dcp@^2.0.0'],
     agent: {
@@ -259,12 +402,12 @@ ${options.knowledgeNotes}
     },
     mcp: mcpServers,
     experimental: {
-      mcp_timeout: 600000, // 10 minutes — allow long-running MCP tools like AskUserQuestion
+      mcp_timeout: 600000, // 10 minutes — allow long-running MCP tools
     },
   };
 
   const configDir = path.join(userDataPath, 'opencode');
-  const configFileName = options.configFileName ?? 'opencode.json';
+  const configFileName = options.configFileName ?? DEFAULT_CONFIG_FILE_NAME;
   const configPath = path.join(configDir, configFileName);
 
   if (!fs.existsSync(configDir)) {
@@ -273,6 +416,7 @@ ${options.knowledgeNotes}
 
   const configJson = JSON.stringify(config, null, 2);
   fs.writeFileSync(configPath, configJson);
+  syncPermissionPolicyIntoDefaultConfig(configDir, configPath);
 
   log.info(`[OpenCode Config] Generated config at: ${configPath}`);
 

@@ -19,7 +19,6 @@ import type { McpConnector, ConnectorStatus, OAuthTokens } from '../common/types
 import type { SandboxConfig } from '../common/types/sandbox.js';
 import type { CloudBrowserConfig } from '../common/types/cloud-browser.js';
 import type { MessagingConfig } from '../common/types/messaging.js';
-import type { BlocklistEntry } from '../common/types/desktop.js';
 import type { ScheduledTask } from '../common/types/daemon.js';
 
 /** Options for creating a Storage instance */
@@ -34,6 +33,23 @@ export interface StorageOptions {
   secureStorageAppId?: string;
   /** File name for the encrypted secure storage file */
   secureStorageFileName?: string;
+  /**
+   * Path to the legacy `workspace-meta{.db,-dev.db}` SQLite file produced by
+   * PR #748 (consolidated away by the v030 migration).
+   *
+   * Required for callers that pass `databasePath` AND call `.initialize()` on
+   * the returned API — i.e. desktop `getStorage()` and daemon
+   * `StorageService.initialize()`. On the v30 upgrade boot the initializer
+   * invokes `importLegacyWorkspaceMeta` to copy the old rows into
+   * `accomplish.db`; after successful import the deletion helper uses the
+   * same path to remove the retired file.
+   *
+   * MUST NOT be passed by callers that use the API for secure-storage only
+   * without opening the SQLite DB (e.g. `apps/desktop/src/main/store/secureStorage.ts`,
+   * which constructs a `StorageAPI` without `databasePath`). Test fixtures may
+   * omit it to exercise the empty-install / no-legacy-file behavior.
+   */
+  legacyMetaDbPath?: string;
 }
 
 /** A persisted task record from the database */
@@ -299,18 +315,6 @@ export interface DatabaseLifecycleAPI {
   getDatabasePath(): string | null;
 }
 
-/** API for managing the desktop-control sensitive app blocklist */
-export interface DesktopControlStorageAPI {
-  /** Get the user's custom blocklist entries */
-  getDesktopBlocklist(): BlocklistEntry[];
-  /** Set the user's custom blocklist entries */
-  setDesktopBlocklist(entries: BlocklistEntry[]): void;
-  /** Add a single entry to the blocklist (deduplicates by appName) */
-  addDesktopBlocklistEntry(entry: BlocklistEntry): void;
-  /** Remove an entry from the blocklist by appName */
-  removeDesktopBlocklistEntry(appName: string): void;
-}
-
 /** API for cron-based scheduled task persistence */
 export interface SchedulerStorageAPI {
   /** Get all scheduled tasks */
@@ -331,7 +335,7 @@ export interface SchedulerStorageAPI {
   updateScheduledTaskLastRun(id: string, timestamp: string, nextRunAt: string): void;
 }
 
-/** Unified storage API combining task, settings, provider, secure storage, connector, desktop control, scheduler, and database lifecycle operations */
+/** Unified storage API combining task, settings, provider, secure storage, connector, scheduler, and database lifecycle operations */
 export interface StorageAPI
   extends
     TaskStorageAPI,
@@ -339,7 +343,6 @@ export interface StorageAPI
     ProviderSettingsAPI,
     SecureStorageAPI,
     ConnectorStorageAPI,
-    DesktopControlStorageAPI,
     SchedulerStorageAPI,
     DatabaseLifecycleAPI {}
 
