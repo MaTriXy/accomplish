@@ -161,6 +161,13 @@ export type { Task, TaskMessage, TaskConfig, FileAttachmentInfo } from './common
 export type { TodoItem } from './common/types/todo.js';
 export type { Skill } from './common/types/skills.js';
 export type {
+  PrivacyConfig,
+  Recording,
+  RecordingUpdateInput,
+  ReplayOptions,
+  ReplayRun,
+} from './common/types/recording.js';
+export type {
   GoogleAccount,
   GoogleAccountStatus,
   GoogleAccountToken,
