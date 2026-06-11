@@ -3,49 +3,41 @@
 </p>
 
 <p align="center">
-  <img src="docs/banner.svg" alt="Accomplish - Open source AI desktop agent that automates file management, document creation, and browser tasks with your own AI API keys" width="100%" />
-</p>
-
-<p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-22c55e?style=flat-square" alt="MIT License" /></a>
-  <a href="https://github.com/accomplish-ai/accomplish/stargazers"><img src="https://img.shields.io/github/stars/accomplish-ai/accomplish?style=flat-square&color=22c55e" alt="GitHub Stars" /></a>
-  <a href="https://github.com/accomplish-ai/accomplish/issues"><img src="https://img.shields.io/github/issues/accomplish-ai/accomplish?style=flat-square&color=22c55e" alt="GitHub Issues" /></a>
-  <a href="https://github.com/accomplish-ai/accomplish/commits"><img src="https://img.shields.io/github/last-commit/accomplish-ai/accomplish?style=flat-square&color=22c55e" alt="Last Commit" /></a>
-  <a href="https://downloads.accomplish.ai/downloads/0.5.17/macos/Accomplish-0.5.17-mac-arm64.dmg"><img src="https://img.shields.io/badge/Download-macOS_(Apple_Silicon)-0ea5e9?style=flat-square" alt="Download for macOS (Apple Silicon)" /></a>
-  <a href="https://downloads.accomplish.ai/downloads/0.5.17/macos/Accomplish-0.5.17-mac-x64.dmg"><img src="https://img.shields.io/badge/Download-macOS_(Intel)-0ea5e9?style=flat-square" alt="Download for macOS (Intel)" /></a>
-  <a href="https://downloads.accomplish.ai/downloads/0.5.17/windows/Accomplish-0.5.17-win-x64.exe"><img src="https://img.shields.io/badge/Download-Windows_11-0ea5e9?style=flat-square" alt="Download for Windows 11" /></a>
-  <a href="https://downloads.accomplish.ai/downloads/0.5.17/linux/Accomplish-0.5.17-linux-arm64.AppImage"><img src="https://img.shields.io/badge/Download-Linux_(ARM64)-0ea5e9?style=flat-square" alt="Download for Linux (ARM64)" /></a>
-  <a href="https://downloads.accomplish.ai/downloads/0.5.17/linux/Accomplish-0.5.17-linux-x86_64.AppImage"><img src="https://img.shields.io/badge/Download-Linux_(x64)-0ea5e9?style=flat-square" alt="Download for Linux (x64)" /></a>
-  <a href="https://downloads.accomplish.ai/downloads/0.5.17/linux/Accomplish-0.5.17-linux-amd64.deb"><img src="https://img.shields.io/badge/Download-Linux_(.deb_x64)-0ea5e9?style=flat-square" alt="Download for Linux (.deb x64)" /></a>
+  <a href="https://github.com/coworker-ai/coworker/stargazers"><img src="https://img.shields.io/github/stars/coworker-ai/coworker?style=flat-square&color=22c55e" alt="GitHub Stars" /></a>
+  <a href="https://github.com/coworker-ai/coworker/issues"><img src="https://img.shields.io/github/issues/coworker-ai/coworker?style=flat-square&color=22c55e" alt="GitHub Issues" /></a>
+  <a href="https://github.com/coworker-ai/coworker/commits"><img src="https://img.shields.io/github/last-commit/coworker-ai/coworker?style=flat-square&color=22c55e" alt="Last Commit" /></a>
+  <a href="https://downloads.coworker.ai/downloads/0.5.17/macos/Coworker-0.5.17-mac-arm64.dmg"><img src="https://img.shields.io/badge/Download-macOS_(Apple_Silicon)-0ea5e9?style=flat-square" alt="Download for macOS (Apple Silicon)" /></a>
+  <a href="https://downloads.coworker.ai/downloads/0.5.17/macos/Coworker-0.5.17-mac-x64.dmg"><img src="https://img.shields.io/badge/Download-macOS_(Intel)-0ea5e9?style=flat-square" alt="Download for macOS (Intel)" /></a>
+  <a href="https://downloads.coworker.ai/downloads/0.5.17/windows/Coworker-0.5.17-win-x64.exe"><img src="https://img.shields.io/badge/Download-Windows_11-0ea5e9?style=flat-square" alt="Download for Windows 11" /></a>
+  <a href="https://downloads.coworker.ai/downloads/0.5.17/linux/Coworker-0.5.17-linux-arm64.AppImage"><img src="https://img.shields.io/badge/Download-Linux_(ARM64)-0ea5e9?style=flat-square" alt="Download for Linux (ARM64)" /></a>
+  <a href="https://downloads.coworker.ai/downloads/0.5.17/linux/Coworker-0.5.17-linux-x86_64.AppImage"><img src="https://img.shields.io/badge/Download-Linux_(x64)-0ea5e9?style=flat-square" alt="Download for Linux (x64)" /></a>
+  <a href="https://downloads.coworker.ai/downloads/0.5.17/linux/Coworker-0.5.17-linux-amd64.deb"><img src="https://img.shields.io/badge/Download-Linux_(.deb_x64)-0ea5e9?style=flat-square" alt="Download for Linux (.deb x64)" /></a>
   <a href="https://discord.gg/kg5Nekpm"><img src="https://img.shields.io/badge/Discord-Join-5865F2?style=flat-square&logo=discord&logoColor=white" alt="Discord" /></a>
 </p>
 
-# Accomplish™ - Open Source AI Desktop Agent
+# Coworker™ - Open Source AI Desktop Agent
 
-Accomplish is an open source AI desktop agent that automates file management, document creation, and browser tasks locally on your machine. Bring your own API keys (OpenAI, Anthropic, Google, xAI) or run local models via Ollama.
+Coworker is an open source AI desktop agent that automates file management, document creation, and browser tasks locally on your machine. Bring your own API keys (OpenAI, Anthropic, Google, xAI) or run local models via Ollama.
 
 <p align="center">
   <strong>Runs locally on your machine. Bring your own API keys or local models. MIT licensed.</strong>
 </p>
 
 <p align="center">
-  <a href="https://downloads.accomplish.ai/downloads/0.5.17/macos/Accomplish-0.5.17-mac-arm64.dmg"><strong>Download for Mac (Apple Silicon)</strong></a>
+  <a href="https://downloads.coworker.ai/downloads/0.5.17/macos/Coworker-0.5.17-mac-arm64.dmg"><strong>Download for Mac (Apple Silicon)</strong></a>
   ·
-  <a href="https://downloads.accomplish.ai/downloads/0.5.17/macos/Accomplish-0.5.17-mac-x64.dmg"><strong>Download for Mac (Intel)</strong></a>
+  <a href="https://downloads.coworker.ai/downloads/0.5.17/macos/Coworker-0.5.17-mac-x64.dmg"><strong>Download for Mac (Intel)</strong></a>
   ·
-  <a href="https://downloads.accomplish.ai/downloads/0.5.17/windows/Accomplish-0.5.17-win-x64.exe"><strong>Download for Windows 11</strong></a>
+  <a href="https://downloads.coworker.ai/downloads/0.5.17/windows/Coworker-0.5.17-win-x64.exe"><strong>Download for Windows 11</strong></a>
   ·
-  <a href="https://downloads.accomplish.ai/downloads/0.5.17/linux/Accomplish-0.5.17-linux-arm64.AppImage"><strong>Download for Linux (ARM64)</strong></a>
+  <a href="https://downloads.coworker.ai/downloads/0.5.17/linux/Coworker-0.5.17-linux-arm64.AppImage"><strong>Download for Linux (ARM64)</strong></a>
   ·
-  <a href="https://downloads.accomplish.ai/downloads/0.5.17/linux/Accomplish-0.5.17-linux-x86_64.AppImage"><strong>Download for Linux (x64)</strong></a>
+  <a href="https://downloads.coworker.ai/downloads/0.5.17/linux/Coworker-0.5.17-linux-x86_64.AppImage"><strong>Download for Linux (x64)</strong></a>
   ·
-  <a href="https://downloads.accomplish.ai/downloads/0.5.17/linux/Accomplish-0.5.17-linux-amd64.deb"><strong>Download for Linux (.deb x64)</strong></a>
+  <a href="https://downloads.coworker.ai/downloads/0.5.17/linux/Coworker-0.5.17-linux-amd64.deb"><strong>Download for Linux (.deb x64)</strong></a>
   ·
-  <a href="https://www.accomplish.ai/">Accomplish website</a>
-  ·
-  <a href="https://www.accomplish.ai/blog/">Accomplish blog</a>
-  ·
-  <a href="https://github.com/accomplish-ai/accomplish/releases">Accomplish releases</a>
+  <a href="https://github.com/coworker-ai/coworker/releases">Coworker releases</a>
 </p>
 
 <br />
@@ -66,7 +58,7 @@ Accomplish is an open source AI desktop agent that automates file management, do
 
 - Your files stay on your machine
 - You decide which folders it can touch
-- Nothing gets sent to Accomplish (or anyone else)
+- Nothing gets sent to Coworker (or anyone else)
 
 </div>
 
@@ -167,7 +159,7 @@ Accomplish is an open source AI desktop agent that automates file management, do
 
 ## Privacy and local-first
 
-Accomplish runs locally on your machine. Your files stay on your device, and you choose which folders it can access.
+Coworker runs locally on your machine. Your files stay on your device, and you choose which folders it can access.
 
 <br />
 
@@ -202,7 +194,7 @@ Accomplish runs locally on your machine. Your files stay on your device, and you
 
 <div align="center">
 
-[**Download for Mac (Apple Silicon)**](https://downloads.accomplish.ai/downloads/0.5.17/macos/Accomplish-0.5.17-mac-arm64.dmg) · [**Download for Mac (Intel)**](https://downloads.accomplish.ai/downloads/0.5.17/macos/Accomplish-0.5.17-mac-x64.dmg) · [**Download for Windows 11**](https://downloads.accomplish.ai/downloads/0.5.17/windows/Accomplish-0.5.17-win-x64.exe) · [**Download for Linux (ARM64)**](https://downloads.accomplish.ai/downloads/0.5.17/linux/Accomplish-0.5.17-linux-arm64.AppImage) · [**Download for Linux (x64)**](https://downloads.accomplish.ai/downloads/0.5.17/linux/Accomplish-0.5.17-linux-x86_64.AppImage) · [**Download for Linux (.deb x64)**](https://downloads.accomplish.ai/downloads/0.5.17/linux/Accomplish-0.5.17-linux-amd64.deb)
+[**Download for Mac (Apple Silicon)**](https://downloads.coworker.ai/downloads/0.5.17/macos/Coworker-0.5.17-mac-arm64.dmg) · [**Download for Mac (Intel)**](https://downloads.coworker.ai/downloads/0.5.17/macos/Coworker-0.5.17-mac-x64.dmg) · [**Download for Windows 11**](https://downloads.coworker.ai/downloads/0.5.17/windows/Coworker-0.5.17-win-x64.exe) · [**Download for Linux (ARM64)**](https://downloads.coworker.ai/downloads/0.5.17/linux/Coworker-0.5.17-linux-arm64.AppImage) · [**Download for Linux (x64)**](https://downloads.coworker.ai/downloads/0.5.17/linux/Coworker-0.5.17-linux-x86_64.AppImage) · [**Download for Linux (.deb x64)**](https://downloads.coworker.ai/downloads/0.5.17/linux/Coworker-0.5.17-linux-amd64.deb)
 
 </div>
 
@@ -224,11 +216,11 @@ Accomplish runs locally on your machine. Your files stay on your device, and you
 
 ## Screenshots and Demo
 
-A quick look at Accomplish on macOS, plus a short demo video.
+A quick look at Coworker on macOS, plus a short demo video.
 
 <p align="center">
   <a href="https://youtu.be/UJ0FIufMOlc?si=iFcu3VTG4B4q9VCB">
-    <img src="docs/video-thumbnail.png" alt="Accomplish demo - AI agent automating file management and browser tasks" width="600" />
+    <img src="docs/video-thumbnail.png" alt="Coworker demo - AI agent automating file management and browser tasks" width="600" />
   </a>
 </p>
 
@@ -240,14 +232,16 @@ A quick look at Accomplish on macOS, plus a short demo video.
 
 ## FAQ
 
-**Does Accomplish run locally?**  
-Yes. Accomplish runs locally on your machine and you control which folders it can access.
+**Does Coworker run locally?**
+
+Yes. Coworker runs locally on your machine and you control which folders it can access.
 
 **Do I need an API key?**  
 You can use your own API keys (OpenAI, Anthropic, Google, xAI, etc.) or run local models via Ollama.
 
-**Is Accomplish free?**  
-Yes. Accomplish is open source and MIT licensed.
+**Is Coworker free?**
+
+Yes. Coworker is open source and MIT licensed.
 
 **Which platforms are supported?**
 macOS (Apple Silicon), macOS (Intel), Windows 11, Ubuntu ARM64, and Ubuntu x64 are supported.
@@ -278,17 +272,17 @@ That's it.
 <details>
 <summary><strong>All Commands</strong></summary>
 
-| Command                                     | Description                            |
-| ------------------------------------------- | -------------------------------------- |
-| `pnpm dev`                                  | Run desktop app in dev mode            |
-| `pnpm dev:clean`                            | Dev mode with clean start              |
-| `pnpm build`                                | Build all workspaces                   |
-| `pnpm build:desktop`                        | Build desktop app only                 |
-| `pnpm -F @accomplish/desktop package:win`   | Build Windows installer (x64)          |
-| `pnpm -F @accomplish/desktop package:linux` | Build Linux artifacts (AppImage + deb) |
-| `pnpm lint`                                 | TypeScript checks                      |
-| `pnpm typecheck`                            | Type validation                        |
-| `pnpm -F @accomplish/desktop test:e2e`      | Playwright E2E tests                   |
+| Command                                   | Description                            |
+| ----------------------------------------- | -------------------------------------- |
+| `pnpm dev`                                | Run desktop app in dev mode            |
+| `pnpm dev:clean`                          | Dev mode with clean start              |
+| `pnpm build`                              | Build all workspaces                   |
+| `pnpm build:desktop`                      | Build desktop app only                 |
+| `pnpm -F @coworker/desktop package:win`   | Build Windows installer (x64)          |
+| `pnpm -F @coworker/desktop package:linux` | Build Linux artifacts (AppImage + deb) |
+| `pnpm lint`                               | TypeScript checks                      |
+| `pnpm typecheck`                          | Type validation                        |
+| `pnpm -F @coworker/desktop test:e2e`      | Playwright E2E tests                   |
 
 </details>
 
@@ -343,11 +337,11 @@ git push origin feature/amazing-feature
 
 <div align="center">
 
-**[Accomplish website](https://www.accomplish.ai/)** · **[Accomplish blog](https://www.accomplish.ai/blog/)** · **[Accomplish releases](https://github.com/accomplish-ai/accomplish/releases)** · **[Issues](https://github.com/accomplish-ai/accomplish/issues)** · **[Twitter](https://x.com/Accomplish_ai)**
+**[Coworker releases](https://github.com/coworker-ai/coworker/releases)** · **[Issues](https://github.com/coworker-ai/coworker/issues)** · **[Twitter](https://x.com/Coworker_ai)**
 
 <br />
 
-MIT License · Built by [Accomplish](https://www.accomplish.ai)
+MIT License
 
 <br />
 

@@ -14,7 +14,7 @@ The server supports two connection modes, determined by the `CDP_ENDPOINT` envir
 
 ### Builtin mode (default)
 
-Connects to the dev-browser HTTP server, which manages browser lifecycle and page routing. This is how the Accomplish desktop app uses it.
+Connects to the dev-browser HTTP server, which manages browser lifecycle and page routing. This is how the Coworker desktop app uses it.
 
 ```bash
 # Uses http://localhost:9224 by default
@@ -38,12 +38,12 @@ CDP_ENDPOINT=ws://remote-browser:9222 CDP_SECRET=my-token npx tsx src/index.ts
 
 ### Environment variables
 
-| Variable             | Mode    | Description                                                   |
-| -------------------- | ------- | ------------------------------------------------------------- |
-| `CDP_ENDPOINT`       | remote  | CDP endpoint URL (http or ws). When set, enables remote mode. |
-| `CDP_SECRET`         | remote  | Sent as `X-CDP-Secret` header for authenticated endpoints.    |
-| `DEV_BROWSER_PORT`   | builtin | Port for the dev-browser HTTP server (default: `9224`).       |
-| `ACCOMPLISH_TASK_ID` | both    | Task ID for page name isolation (default: `default`).         |
+| Variable           | Mode    | Description                                                   |
+| ------------------ | ------- | ------------------------------------------------------------- |
+| `CDP_ENDPOINT`     | remote  | CDP endpoint URL (http or ws). When set, enables remote mode. |
+| `CDP_SECRET`       | remote  | Sent as `X-CDP-Secret` header for authenticated endpoints.    |
+| `DEV_BROWSER_PORT` | builtin | Port for the dev-browser HTTP server (default: `9224`).       |
+| `COWORKER_TASK_ID` | both    | Task ID for page name isolation (default: `default`).         |
 
 ### Launching a headless browser for remote mode
 

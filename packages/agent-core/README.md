@@ -1,19 +1,19 @@
-# @accomplish_ai/agent-core
+# @coworker_ai/agent-core
 
-Core library for the Accomplish desktop automation assistant. Provides factory-based APIs for task management, persistent storage, permission handling, logging, and more.
+Core library for the Coworker desktop automation assistant. Provides factory-based APIs for task management, persistent storage, permission handling, logging, and more.
 
 ## Usage
 
-This package is internal to the Accomplish monorepo and is consumed via workspace dependencies (for example, `"@accomplish_ai/agent-core": "workspace:*"`).
+This package is internal to the Coworker monorepo and is consumed via workspace dependencies (for example, `"@coworker_ai/agent-core": "workspace:*"`).
 
 ## Quick Start
 
 ```typescript
-import { createStorage, createTaskManager } from '@accomplish_ai/agent-core';
+import { createStorage, createTaskManager } from '@coworker_ai/agent-core';
 
 // Initialize storage (SQLite + encrypted secure storage)
 const storage = createStorage({
-  databasePath: '/path/to/accomplish.db',
+  databasePath: '/path/to/coworker.db',
   userDataPath: '/path/to/user-data',
 });
 storage.initialize();
@@ -55,7 +55,7 @@ The package exports seven factory functions. Each returns an interface that hide
 Spawns and manages OpenCode CLI tasks via PTY. Supports concurrent task execution, queuing, cancellation, and lifecycle callbacks (messages, progress, permissions, completion).
 
 ```typescript
-import { createTaskManager } from '@accomplish_ai/agent-core';
+import { createTaskManager } from '@coworker_ai/agent-core';
 ```
 
 ### createStorage(options) → StorageAPI
@@ -63,7 +63,7 @@ import { createTaskManager } from '@accomplish_ai/agent-core';
 SQLite-backed storage for tasks, app settings, and provider configuration. Includes AES-256-GCM encrypted secure storage for API keys. Combines `TaskStorageAPI`, `AppSettingsAPI`, `ProviderSettingsAPI`, `SecureStorageAPI`, and `DatabaseLifecycleAPI` into a single interface.
 
 ```typescript
-import { createStorage } from '@accomplish_ai/agent-core';
+import { createStorage } from '@coworker_ai/agent-core';
 ```
 
 ### createPermissionHandler(options?) → PermissionHandlerAPI
@@ -71,7 +71,7 @@ import { createStorage } from '@accomplish_ai/agent-core';
 Handles file operation and tool permission requests from running tasks. Creates request/response pairs with configurable timeouts, validates incoming request data, and builds structured permission request objects.
 
 ```typescript
-import { createPermissionHandler } from '@accomplish_ai/agent-core';
+import { createPermissionHandler } from '@coworker_ai/agent-core';
 ```
 
 ### createLogWriter(options) → LogWriterAPI
@@ -79,7 +79,7 @@ import { createPermissionHandler } from '@accomplish_ai/agent-core';
 Structured rotating log file writer with buffered writes. Supports multiple log sources (main, mcp, browser, opencode, env, ipc) and configurable rotation size, retention period, and flush intervals.
 
 ```typescript
-import { createLogWriter } from '@accomplish_ai/agent-core';
+import { createLogWriter } from '@coworker_ai/agent-core';
 ```
 
 ### createSkillsManager(options) → SkillsManagerAPI
@@ -87,7 +87,7 @@ import { createLogWriter } from '@accomplish_ai/agent-core';
 Manages custom prompt skill files. Loads skills from bundled and user directories, supports enabling/disabling, adding, deleting, and reading skill content.
 
 ```typescript
-import { createSkillsManager } from '@accomplish_ai/agent-core';
+import { createSkillsManager } from '@coworker_ai/agent-core';
 ```
 
 ### createSpeechService(options) → SpeechServiceAPI
@@ -95,7 +95,7 @@ import { createSkillsManager } from '@accomplish_ai/agent-core';
 Speech-to-text transcription via ElevenLabs. Validates API keys, transcribes audio buffers, and returns structured results with confidence scores and duration.
 
 ```typescript
-import { createSpeechService } from '@accomplish_ai/agent-core';
+import { createSpeechService } from '@coworker_ai/agent-core';
 ```
 
 ### Browser Configuration
@@ -103,7 +103,7 @@ import { createSpeechService } from '@accomplish_ai/agent-core';
 The config generator accepts a `browser` option to control how the agent connects to a browser:
 
 ```typescript
-import { generateConfig, type BrowserConfig } from '@accomplish_ai/agent-core';
+import { generateConfig, type BrowserConfig } from '@coworker_ai/agent-core';
 
 // Default — uses the dev-browser HTTP server
 generateConfig({ browser: { mode: 'builtin' } });
@@ -149,7 +149,7 @@ import {
   createTaskId,
   getModelDisplayName,
   isWaitingForUser,
-} from '@accomplish_ai/agent-core/common';
+} from '@coworker_ai/agent-core/common';
 ```
 
 ## Requirements

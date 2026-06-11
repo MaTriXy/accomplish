@@ -3,49 +3,45 @@
 </p>
 
 <p align="center">
-  <img src="docs/banner.svg" alt="Accomplish - Agente de escritorio de IA de código abierto que automatiza la gestión de archivos, creación de documentos y tareas del navegador con tus propias claves API de IA" width="100%" />
-</p>
-
-<p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-22c55e?style=flat-square" alt="Licencia MIT" /></a>
-  <a href="https://github.com/accomplish-ai/accomplish/stargazers"><img src="https://img.shields.io/github/stars/accomplish-ai/accomplish?style=flat-square&color=22c55e" alt="GitHub Stars" /></a>
-  <a href="https://github.com/accomplish-ai/accomplish/issues"><img src="https://img.shields.io/github/issues/accomplish-ai/accomplish?style=flat-square&color=22c55e" alt="GitHub Issues" /></a>
-  <a href="https://github.com/accomplish-ai/accomplish/commits"><img src="https://img.shields.io/github/last-commit/accomplish-ai/accomplish?style=flat-square&color=22c55e" alt="Último Commit" /></a>
-  <a href="https://downloads.accomplish.ai/downloads/0.5.17/macos/Accomplish-0.5.17-mac-arm64.dmg"><img src="https://img.shields.io/badge/Download-macOS_(Apple_Silicon)-0ea5e9?style=flat-square" alt="Descargar para macOS (Apple Silicon)" /></a>
-  <a href="https://downloads.accomplish.ai/downloads/0.5.17/macos/Accomplish-0.5.17-mac-x64.dmg"><img src="https://img.shields.io/badge/Download-macOS_(Intel)-0ea5e9?style=flat-square" alt="Descargar para macOS (Intel)" /></a>
-  <a href="https://downloads.accomplish.ai/downloads/0.5.17/windows/Accomplish-0.5.17-win-x64.exe"><img src="https://img.shields.io/badge/Download-Windows_11-0ea5e9?style=flat-square" alt="Descargar para Windows 11" /></a>
-  <a href="https://downloads.accomplish.ai/downloads/0.5.17/linux/Accomplish-0.5.17-linux-arm64.AppImage"><img src="https://img.shields.io/badge/Download-Linux_(ARM64)-0ea5e9?style=flat-square" alt="Descargar para Linux (ARM64)" /></a>
-  <a href="https://downloads.accomplish.ai/downloads/0.5.17/linux/Accomplish-0.5.17-linux-x86_64.AppImage"><img src="https://img.shields.io/badge/Download-Linux_(x64)-0ea5e9?style=flat-square" alt="Descargar para Linux (x64)" /></a>
-  <a href="https://downloads.accomplish.ai/downloads/0.5.17/linux/Accomplish-0.5.17-linux-amd64.deb"><img src="https://img.shields.io/badge/Download-Linux_(.deb_x64)-0ea5e9?style=flat-square" alt="Descargar para Linux (.deb x64)" /></a>
+  <a href="https://github.com/coworker-ai/coworker/stargazers"><img src="https://img.shields.io/github/stars/coworker-ai/coworker?style=flat-square&color=22c55e" alt="GitHub Stars" /></a>
+  <a href="https://github.com/coworker-ai/coworker/issues"><img src="https://img.shields.io/github/issues/coworker-ai/coworker?style=flat-square&color=22c55e" alt="GitHub Issues" /></a>
+  <a href="https://github.com/coworker-ai/coworker/commits"><img src="https://img.shields.io/github/last-commit/coworker-ai/coworker?style=flat-square&color=22c55e" alt="Último Commit" /></a>
+  <a href="https://downloads.coworker.ai/downloads/0.5.17/macos/Coworker-0.5.17-mac-arm64.dmg"><img src="https://img.shields.io/badge/Download-macOS_(Apple_Silicon)-0ea5e9?style=flat-square" alt="Descargar para macOS (Apple Silicon)" /></a>
+  <a href="https://downloads.coworker.ai/downloads/0.5.17/macos/Coworker-0.5.17-mac-x64.dmg"><img src="https://img.shields.io/badge/Download-macOS_(Intel)-0ea5e9?style=flat-square" alt="Descargar para macOS (Intel)" /></a>
+  <a href="https://downloads.coworker.ai/downloads/0.5.17/windows/Coworker-0.5.17-win-x64.exe"><img src="https://img.shields.io/badge/Download-Windows_11-0ea5e9?style=flat-square" alt="Descargar para Windows 11" /></a>
+  <a href="https://downloads.coworker.ai/downloads/0.5.17/linux/Coworker-0.5.17-linux-arm64.AppImage"><img src="https://img.shields.io/badge/Download-Linux_(ARM64)-0ea5e9?style=flat-square" alt="Descargar para Linux (ARM64)" /></a>
+  <a href="https://downloads.coworker.ai/downloads/0.5.17/linux/Coworker-0.5.17-linux-x86_64.AppImage"><img src="https://img.shields.io/badge/Download-Linux_(x64)-0ea5e9?style=flat-square" alt="Descargar para Linux (x64)" /></a>
+  <a href="https://downloads.coworker.ai/downloads/0.5.17/linux/Coworker-0.5.17-linux-amd64.deb"><img src="https://img.shields.io/badge/Download-Linux_(.deb_x64)-0ea5e9?style=flat-square" alt="Descargar para Linux (.deb x64)" /></a>
   <a href="https://discord.gg/kg5Nekpm"><img src="https://img.shields.io/badge/Discord-Join-5865F2?style=flat-square&logo=discord&logoColor=white" alt="Discord" /></a>
 </p>
 
-# Accomplish™ - Agente de Escritorio de IA de Código Abierto
+# Coworker™ - Agente de Escritorio de IA de Código Abierto
 
-Accomplish es un agente de escritorio de IA de código abierto que automatiza la gestión de archivos, creación de documentos y tareas del navegador localmente en tu máquina. Usa tus propias claves API (OpenAI, Anthropic, Google, xAI) o ejecuta modelos locales a través de Ollama.
+Coworker es un agente de escritorio de IA de código abierto que automatiza la gestión de archivos, creación de documentos y tareas del navegador localmente en tu máquina. Usa tus propias claves API (OpenAI, Anthropic, Google, xAI) o ejecuta modelos locales a través de Ollama.
 
 <p align="center">
   <strong>Se ejecuta localmente en tu máquina. Usa tus propias claves API o modelos locales. Licencia MIT.</strong>
 </p>
 
 <p align="center">
-  <a href="https://downloads.accomplish.ai/downloads/0.5.17/macos/Accomplish-0.5.17-mac-arm64.dmg"><strong>Descargar para Mac (Apple Silicon)</strong></a>
+  <a href="https://downloads.coworker.ai/downloads/0.5.17/macos/Coworker-0.5.17-mac-arm64.dmg"><strong>Descargar para Mac (Apple Silicon)</strong></a>
   ·
-  <a href="https://downloads.accomplish.ai/downloads/0.5.17/macos/Accomplish-0.5.17-mac-x64.dmg"><strong>Descargar para Mac (Intel)</strong></a>
+  <a href="https://downloads.coworker.ai/downloads/0.5.17/macos/Coworker-0.5.17-mac-x64.dmg"><strong>Descargar para Mac (Intel)</strong></a>
   ·
-  <a href="https://downloads.accomplish.ai/downloads/0.5.17/windows/Accomplish-0.5.17-win-x64.exe"><strong>Descargar para Windows 11</strong></a>
+  <a href="https://downloads.coworker.ai/downloads/0.5.17/windows/Coworker-0.5.17-win-x64.exe"><strong>Descargar para Windows 11</strong></a>
   ·
-  <a href="https://downloads.accomplish.ai/downloads/0.5.17/linux/Accomplish-0.5.17-linux-arm64.AppImage"><strong>Descargar para Linux (ARM64)</strong></a>
+  <a href="https://downloads.coworker.ai/downloads/0.5.17/linux/Coworker-0.5.17-linux-arm64.AppImage"><strong>Descargar para Linux (ARM64)</strong></a>
   ·
-  <a href="https://downloads.accomplish.ai/downloads/0.5.17/linux/Accomplish-0.5.17-linux-x86_64.AppImage"><strong>Descargar para Linux (x64)</strong></a>
+  <a href="https://downloads.coworker.ai/downloads/0.5.17/linux/Coworker-0.5.17-linux-x86_64.AppImage"><strong>Descargar para Linux (x64)</strong></a>
   ·
-  <a href="https://downloads.accomplish.ai/downloads/0.5.17/linux/Accomplish-0.5.17-linux-amd64.deb"><strong>Descargar para Linux (.deb x64)</strong></a>
+  <a href="https://downloads.coworker.ai/downloads/0.5.17/linux/Coworker-0.5.17-linux-amd64.deb"><strong>Descargar para Linux (.deb x64)</strong></a>
   ·
-  <a href="https://www.accomplish.ai/">Sitio web de Accomplish</a>
+  <a href="https://www.coworker.ai/">Sitio web de Coworker</a>
   ·
-  <a href="https://www.accomplish.ai/blog/">Blog de Accomplish</a>
+  <a href="https://www.coworker.ai/blog/">Blog de Coworker</a>
   ·
-  <a href="https://github.com/accomplish-ai/accomplish/releases">Versiones de Accomplish</a>
+  <a href="https://github.com/coworker-ai/coworker/releases">Versiones de Coworker</a>
 </p>
 
 <br />
@@ -66,7 +62,7 @@ Accomplish es un agente de escritorio de IA de código abierto que automatiza la
 
 - Tus archivos permanecen en tu máquina
 - Tú decides a qué carpetas puede acceder
-- Nada se envía a Accomplish (ni a nadie más)
+- Nada se envía a Coworker (ni a nadie más)
 
 </div>
 
@@ -167,7 +163,7 @@ Accomplish es un agente de escritorio de IA de código abierto que automatiza la
 
 ## Privacidad y local primero
 
-Accomplish se ejecuta localmente en tu máquina. Tus archivos permanecen en tu dispositivo y tú eliges a qué carpetas puede acceder.
+Coworker se ejecuta localmente en tu máquina. Tus archivos permanecen en tu dispositivo y tú eliges a qué carpetas puede acceder.
 
 <br />
 
@@ -201,7 +197,7 @@ Accomplish se ejecuta localmente en tu máquina. Tus archivos permanecen en tu d
 
 <div align="center">
 
-[**Descargar para Mac (Apple Silicon)**](https://downloads.accomplish.ai/downloads/0.5.17/macos/Accomplish-0.5.17-mac-arm64.dmg) · [**Descargar para Mac (Intel)**](https://downloads.accomplish.ai/downloads/0.5.17/macos/Accomplish-0.5.17-mac-x64.dmg) · [**Descargar para Windows 11**](https://downloads.accomplish.ai/downloads/0.5.17/windows/Accomplish-0.5.17-win-x64.exe) · [**Descargar para Linux (ARM64)**](https://downloads.accomplish.ai/downloads/0.5.17/linux/Accomplish-0.5.17-linux-arm64.AppImage) · [**Descargar para Linux (x64)**](https://downloads.accomplish.ai/downloads/0.5.17/linux/Accomplish-0.5.17-linux-x86_64.AppImage) · [**Descargar para Linux (.deb x64)**](https://downloads.accomplish.ai/downloads/0.5.17/linux/Accomplish-0.5.17-linux-amd64.deb)
+[**Descargar para Mac (Apple Silicon)**](https://downloads.coworker.ai/downloads/0.5.17/macos/Coworker-0.5.17-mac-arm64.dmg) · [**Descargar para Mac (Intel)**](https://downloads.coworker.ai/downloads/0.5.17/macos/Coworker-0.5.17-mac-x64.dmg) · [**Descargar para Windows 11**](https://downloads.coworker.ai/downloads/0.5.17/windows/Coworker-0.5.17-win-x64.exe) · [**Descargar para Linux (ARM64)**](https://downloads.coworker.ai/downloads/0.5.17/linux/Coworker-0.5.17-linux-arm64.AppImage) · [**Descargar para Linux (x64)**](https://downloads.coworker.ai/downloads/0.5.17/linux/Coworker-0.5.17-linux-x86_64.AppImage) · [**Descargar para Linux (.deb x64)**](https://downloads.coworker.ai/downloads/0.5.17/linux/Coworker-0.5.17-linux-amd64.deb)
 
 </div>
 
@@ -213,11 +209,11 @@ Accomplish se ejecuta localmente en tu máquina. Tus archivos permanecen en tu d
 
 ## Capturas de pantalla y Demo
 
-Un vistazo rápido a Accomplish en macOS, más un breve video de demostración.
+Un vistazo rápido a Coworker en macOS, más un breve video de demostración.
 
 <p align="center">
   <a href="https://youtu.be/UJ0FIufMOlc?si=iFcu3VTG4B4q9VCB">
-    <img src="docs/video-thumbnail.png" alt="Demo de Accomplish - Agente de IA automatizando gestión de archivos y tareas del navegador" width="600" />
+    <img src="docs/video-thumbnail.png" alt="Demo de Coworker - Agente de IA automatizando gestión de archivos y tareas del navegador" width="600" />
   </a>
 </p>
 
@@ -229,14 +225,14 @@ Un vistazo rápido a Accomplish en macOS, más un breve video de demostración.
 
 ## Preguntas frecuentes
 
-**¿Accomplish se ejecuta localmente?**
-Sí. Accomplish se ejecuta localmente en tu máquina y tú controlas a qué carpetas puede acceder.
+**¿Coworker se ejecuta localmente?**
+Sí. Coworker se ejecuta localmente en tu máquina y tú controlas a qué carpetas puede acceder.
 
 **¿Necesito una clave API?**
 Puedes usar tus propias claves API (OpenAI, Anthropic, Google, xAI, etc.) o ejecutar modelos locales a través de Ollama.
 
-**¿Accomplish es gratis?**
-Sí. Accomplish es de código abierto y tiene licencia MIT.
+**¿Coworker es gratis?**
+Sí. Coworker es de código abierto y tiene licencia MIT.
 
 **¿Qué plataformas son compatibles?**
 macOS (Apple Silicon) y Windows 11 están disponibles ahora. Ubuntu (ARM64) y Ubuntu (x64) también son compatibles.
@@ -267,17 +263,17 @@ Eso es todo.
 <details>
 <summary><strong>Todos los comandos</strong></summary>
 
-| Comando                                     | Descripción                                   |
-| ------------------------------------------- | --------------------------------------------- |
-| `pnpm dev`                                  | Ejecutar app de escritorio en modo desarrollo |
-| `pnpm dev:clean`                            | Modo desarrollo con inicio limpio             |
-| `pnpm build`                                | Compilar todos los workspaces                 |
-| `pnpm build:desktop`                        | Compilar solo app de escritorio               |
-| `pnpm -F @accomplish/desktop package:win`   | Compilar instalador de Windows (x64)          |
-| `pnpm -F @accomplish/desktop package:linux` | Compilar artefactos de Linux (AppImage + deb) |
-| `pnpm lint`                                 | Verificaciones de TypeScript                  |
-| `pnpm typecheck`                            | Validación de tipos                           |
-| `pnpm -F @accomplish/desktop test:e2e`      | Pruebas E2E con Playwright                    |
+| Comando                                   | Descripción                                   |
+| ----------------------------------------- | --------------------------------------------- |
+| `pnpm dev`                                | Ejecutar app de escritorio en modo desarrollo |
+| `pnpm dev:clean`                          | Modo desarrollo con inicio limpio             |
+| `pnpm build`                              | Compilar todos los workspaces                 |
+| `pnpm build:desktop`                      | Compilar solo app de escritorio               |
+| `pnpm -F @coworker/desktop package:win`   | Compilar instalador de Windows (x64)          |
+| `pnpm -F @coworker/desktop package:linux` | Compilar artefactos de Linux (AppImage + deb) |
+| `pnpm lint`                               | Verificaciones de TypeScript                  |
+| `pnpm typecheck`                          | Validación de tipos                           |
+| `pnpm -F @coworker/desktop test:e2e`      | Pruebas E2E con Playwright                    |
 
 </details>
 
@@ -332,11 +328,11 @@ git push origin feature/amazing-feature
 
 <div align="center">
 
-**[Sitio web de Accomplish](https://www.accomplish.ai/)** · **[Blog de Accomplish](https://www.accomplish.ai/blog/)** · **[Versiones de Accomplish](https://github.com/accomplish-ai/accomplish/releases)** · **[Issues](https://github.com/accomplish-ai/accomplish/issues)** · **[Twitter](https://x.com/Accomplish_ai)**
+**[Sitio web de Coworker](https://www.coworker.ai/)** · **[Blog de Coworker](https://www.coworker.ai/blog/)** · **[Versiones de Coworker](https://github.com/coworker-ai/coworker/releases)** · **[Issues](https://github.com/coworker-ai/coworker/issues)** · **[Twitter](https://x.com/Coworker_ai)**
 
 <br />
 
-Licencia MIT · Creado por [Accomplish](https://www.accomplish.ai)
+Licencia MIT · Creado por [Coworker](https://www.coworker.ai)
 
 <br />
 
